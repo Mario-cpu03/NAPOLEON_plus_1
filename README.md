@@ -95,8 +95,6 @@ Provides:
 
 ## Project Structure
 
-A recommended project organization is the following:
-
 ```text
 NAPOLEON_PLUS/
 │
