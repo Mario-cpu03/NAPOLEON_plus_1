@@ -111,3 +111,17 @@ NAPOLEON_PLUS/
 │ 		…
 │
 └── README.md
+
+
+---
+
+## Authors
+
+# Head Professor:
+Alberto Tarable 
+
+# Team: 
+Mario Pellegrino Ambrosone
+Santi La Spina
+Aditya Gohite
+Giovanni Natalizi
