@@ -115,10 +115,10 @@ NAPOLEON_PLUS/
 
 ## Authors
 
-# Head Professor:
+### Head Professor:
 Alberto Tarable 
 
-# Team: 
+### Team: 
 Mario Pellegrino Ambrosone
 Santi La Spina
 Aditya Gohite
