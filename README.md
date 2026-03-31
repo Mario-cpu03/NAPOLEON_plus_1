@@ -119,7 +119,7 @@ NAPOLEON_PLUS/
 Alberto Tarable 
 
 ### Team: 
-Mario Pellegrino Ambrosone
-Santi La Spina
-Aditya Gohite
-Giovanni Natalizi
+- Mario Pellegrino Ambrosone
+- Santi La Spina
+- Aditya Gohite
+- Giovanni Natalizi
