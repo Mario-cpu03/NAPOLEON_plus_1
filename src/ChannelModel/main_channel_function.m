@@ -1,0 +1,35 @@
+%% Main Function Channel Model Module
+% The scope of this function is to call and execute all the channel model 
+% module functions that implement: (i) user behavior, (ii) satellite
+% constellation, (iii) diplay of the globe with users and satellites, (iv)
+% ... (TODEFINE)
+
+% FOR THE MOMENT THE FUNCTION HAS NO INPUT PARAMETERS %
+
+%%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
+% The main function outputs:
+%       1. SATELLITE_Set: Data Structure containing the satellite objects
+%       relevant for the AoI simulated
+%
+%       2. USERS_Set: Data Structure containing the set of users with (i) 
+%       their position (coordinates), (ii) the kind of environment they are
+%       in, (iii) ??? Possibly, if it is a tensor, the time evolution
+%       User-Sat set
+
+function []=main_channel_function()
+
+% Init output structures
+SATELLITE_Set = struct();
+USERS_Set = struct();
+
+% CALL USER FUNCTION
+USERS_Set = User_behavior(); % Assuming a function to initialize user data
+
+% CALL SATELLITE FUNCTION
+SATELLITE_Set = Satellite_constellation(); % Assuming a function to initialize satellite data
+
+% CALL DISPLAY FUNCTION
+Display_globe(SATELLITE_Set, USERS_Set); % Assuming a function to visualize the globe with users and satellites
+
+
+end
