@@ -27,7 +27,7 @@
 %       3.  USER_SAT_evolution: Array of Data Structures containing the time
 %       evolution of the channel's parameters of each user-satellite link.
 
-function [SATELLITE_Set, USERS_Set, USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
+function [USERS_Set, USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
 % Init output structures
 filteredSatellite_Set = struct();
@@ -37,7 +37,7 @@ USER_SAT_evolution = struct();
 
 % Constellation fixed parameters. We model a Starlink constellation, namely
 % the first shell constellation according to the FCC 21-48 documentation.
-% We note that
+
 
 % Init user parameters.  We assume a small italy-centric portion of europe,
 % in which a multi distributed user behavior is assumed. The
