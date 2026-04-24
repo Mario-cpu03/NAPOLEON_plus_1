@@ -5,22 +5,17 @@
 % that are relevant to the association & handover problem. That is, the
 % satellites that the ground stations cannot see during the simulation
 % window, given a certain elevation treshhold assumed fundamental to
-% guarantee a certain QoS.
+% guarantee 
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
-%       1. minimumElev: treshhold elevation angle between ground stations and
-%       satellites
+%       1. minimumElev: 
 % 
-%       2. simulationScenario: satelliteScenario object of the toolbox
-%       from which GroundStation objects and Satellite objects can be
-%       accessed. This object will be thus deleted for Memory Occupancy
-%       optimization
+%       2. simulationScenario: 
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
-%       1. filteredSimScen: satelliteScenario object of the toolbox updated
-%       with the filtered Satellite objects
+%       1. filteredSimScen: 
 
-function [filteredSimScen]=Filter_constellation(simulationScenario, minimumElev)
+function []=Filter_constellation()
 
 
 end

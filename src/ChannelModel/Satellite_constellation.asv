@@ -1,42 +1,27 @@
-function []=Satellite_constellation()
+%% Satellite_constellation function
+% This function computes the whole First Shell Starlink Constellation in
+% compliance with the FCC 21-48 authorization. That is, the 540km altitude, 
+% 72 orbital planes, 22 satellites per orbital plane, constellation. 
 
-alt_km = 550;
-inc_deg = 53;
+%%%%%% ----- INPUT PARAMETERS ----- %%%%%%
+%       1. configConst : Data Strcuture containing:
+%                   (i) the number of orbital planes
+%                   (ii) the number of satellite per planes
+%                   (iii) the altitude of the constellation
+%                   (iv) the inclination with respect to the equatorial 
+%                   line of the planes
+%                   (v) the phasing parameter to offset satellites on
+%                   different planes
+%
+%       2. 
+%
+%       3. 
 
-totalPlanes = 72;
-satsPerPlane = 22;
-F=17;
+%%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
+%       1. 
+%
+%       2. 
 
-earthRadius_km = 6371;
-semiMajorAxis_m = (earthRadius_km + alt_km) * 1e3;
-phaseOffsetPerPlane_deg = F*360 / (22 * 72);
-
-satCount = 0;
-
-for p = totalPlanes
-    % RAAN spacing over the currently modeled shell
-    raan = (p-1) * 360 / totalPlanes;
-
-    for m = 1:satsPerPlane
-        % Satellite position inside the plane
-        ta = (m-1) * 360 / satsPerPlane;
-
-        % Thesis-inspired plane-dependent phase shift
-        ta = mod(ta + (p-1) * phaseOffsetPerPlane_deg, 360);
-
-        satCount = satCount + 1;
-
-        satellite(sc, ...
-            semiMajorAxis_m, ...
-            0, ...
-            inc_deg, ...
-            raan, ...
-            0, ...
-            ta, ...
-            Name=sprintf("SAT_%d_%d", p, m));
-    end
-end
-
-satObjs = sc.Satellites;
+function [SATELLITE_Set]=Satellite_constellation()
 
 end
