@@ -19,24 +19,16 @@
 % The main function outputs:
 %       1.  filteredSatellite_Set : Data Structure containing the satellite objects
 %       relevant for the AoI simulated
-%
-%       2.  USERS_Set: Data Structure containing the set of users with (i) 
-%       their position (coordinates), (ii) the kind of environment they are
-%       in
 % 
 %       3.  USER_SAT_evolution: Array of Data Structures containing the time
 %       evolution of the channel's parameters of each user-satellite link.
 
-function [USERS_Set, USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
+function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
-% Init output structures
-filteredSatellite_Set = struct();
-SATELLITE_Set = struct();
-USERS_Set = struct();
+% Init output structure
 USER_SAT_evolution = struct();
 
-% Constellation fixed parameters. We model a Starlink constellation, namely
-% the first shell constellation according to the FCC 21-48 documentation.
+% Constellation fixed parameters.
 
 
 % Init user parameters.  We assume a small italy-centric portion of europe,
@@ -45,18 +37,18 @@ USER_SAT_evolution = struct();
 % be though of as base stations, hence antennas.
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
-SATELLITE_Set = Satellite_constellation(); 
+simulationScenario=Satellite_constellation(configConst, simulationScenario);
 
-% CALL USER FUNCTION
-USERS_Set = User_behavior(); 
+% CALL USER FUNCTION to generate the non uniform users' distribution
+[simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
-filteredSatellite_Set = Filter_constellation(SATELLITE_Set, USERS_Set); %
+filteredSimScen=Filter_constellation(simulationScenario, minimumElev);
 
 % CALL DISPLAY FUNCTION
-Display_globe(filteredSatellite_Set, USERS_Set); 
+Display_globe(filteredSimScen); 
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
-USER_SAT_evolution = channel_model();
+USER_SAT_evolution = channel_model(configChannel, filteredSimScen, groundEnv);
 
 end
