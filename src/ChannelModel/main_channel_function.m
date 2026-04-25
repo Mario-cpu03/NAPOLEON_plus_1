@@ -40,6 +40,14 @@ USER_SAT_evolution = struct();
 simulationScenario=Satellite_constellation(configConst, simulationScenario);
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
+
+%configAoI.latMin
+%configAoI.latMax
+%configAoI.lonMin
+%configAoI.lonMax
+%configAoI.deltaLat
+%configAoI.deltaLon
+
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
