@@ -28,13 +28,23 @@ function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTim
 % Init output structure
 USER_SAT_evolution = struct();
 
-% Constellation fixed parameters.
+% Init starting satellite scenario object with time intervals of reference
+simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
 
+% Constellation fixed parameters, to be found on paragraph 4 chapter 2 of
+% the FCC 21-48.
+configConst = struct( ...
+              'planes', 72, ... % Total number of orbital planes, integer variable, must be reduced in Filter_constellation 
+              'satPlanes', 22, ... % Total number of satellites per plane, integer variable, most probably will not be reduced in Filter_constellation 
+              'inclination', 53.2, ... % Equatorial inclination of the orbit, float variable, .2 degrees more inclinated than 2020 constellation
+              'phasingParam', 17, ... % Phasing param multiplying phasing offset obtained in Phasing Parameter Analysis for Satellite Collision Avoidance in Starlink and Kuiper Constellations
+              'altitude', 540); % Altitude of the (second) shell
 
 % Init user parameters.  We assume a small italy-centric portion of europe,
 % in which a multi distributed user behavior is assumed. The
 % users are static (mobile speed = 0) for simplicity. The user may as well
 % be though of as base stations, hence antennas.
+%% TODO - most probably Santi's business
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);
