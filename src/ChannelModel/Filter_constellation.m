@@ -2,8 +2,8 @@
 % This function instantiate a new SatelliteScenario object that describes
 % the filtered constellation. The goal is to filter out the original
 % Starlink constellation by reducing the amount of satellites to only those 
-% that are relevant to the association & handover problem. That is, the
-% satellites that the ground stations cannot see during the simulation
+% that may be relevant to the association & handover problem. That is, the
+% satellites that any ground station cannot see during the simulation
 % window, given a certain elevation treshhold assumed fundamental to
 % guarantee a certain QoS.
 

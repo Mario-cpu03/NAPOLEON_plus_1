@@ -44,7 +44,7 @@ configConst = struct( ...
 % in which a multi distributed user behavior is assumed. The
 % users are static (mobile speed = 0) for simplicity. The user may as well
 % be though of as base stations, hence antennas.
-%% TODO
+%% TODO - most probably Santi's business
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);
