@@ -23,5 +23,5 @@
 %       can be accessed as Satellites object
 
 function [simulationScenario]=Satellite_constellation(configConst, simulationScenario)
-
+        
 end
