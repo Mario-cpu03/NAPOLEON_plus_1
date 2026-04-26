@@ -25,6 +25,9 @@
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
+addpath('user_behavior_functions');    %should be in the general main
+
+
 % Init output structure
 USER_SAT_evolution = struct();
 
