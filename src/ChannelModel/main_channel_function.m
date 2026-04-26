@@ -37,7 +37,8 @@ configConst = struct( ...
               'planes', 72, ... % Total number of orbital planes, integer variable, must be reduced in Filter_constellation 
               'satPlanes', 22, ... % Total number of satellites per plane, integer variable, most probably will not be reduced in Filter_constellation 
               'inclination', 53.2, ... % Equatorial inclination of the orbit, float variable, .2 degrees more inclinated than 2020 constellation
-              'phasingParam', 17); % Phasing param multiplying phasing offset obtained in Phasing Parameter Analysis for Satellite Collision Avoidance in Starlink and Kuiper Constellations
+              'phasingParam', 17, ... % Phasing param multiplying phasing offset obtained in Phasing Parameter Analysis for Satellite Collision Avoidance in Starlink and Kuiper Constellations
+              'altitude', 540); % Altitude of the (second) shell
 
 % Init user parameters.  We assume a small italy-centric portion of europe,
 % in which a multi distributed user behavior is assumed. The
