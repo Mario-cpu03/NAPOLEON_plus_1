@@ -7,5 +7,14 @@
 
 function []=Display_globe(filteredSimScen)
 
+% DEBUGGING PURPOSES VISUALIZATION
+viewer = satelliteScenarioViewer(filteredSimScen);
+
+% Show orbit traces
+orb = orbit(filteredSimScen.Satellites);
+show(orb);
+
+play(filteredSimScen);
+
 
 end
