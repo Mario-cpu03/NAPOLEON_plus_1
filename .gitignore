@@ -1,1 +1,7 @@
+# MATLAB files ignore
+*.asv
+*.m~
+
+# OS files ignore
 .DS_Store
+Thumbs.db
