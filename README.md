@@ -24,6 +24,7 @@ The main objective is to assess how LEO-specific parameters — such as satellit
 - [Development Status](#development-status)
 - [References](#references)
 - [Authors](#authors)
+- [License](#license)
 
 ---
 
@@ -206,3 +207,11 @@ Alberto Tarable
 - Santi La Spina
 - Aditya Gohite
 - Giovanni Natalizi
+
+---
+
+## License
+
+This project is licensed under the MIT License.
+
+See the [LICENSE](LICENSE) file for details.
