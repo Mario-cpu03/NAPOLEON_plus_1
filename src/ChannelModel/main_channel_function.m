@@ -51,6 +51,16 @@ simulationScenario=Satellite_constellation(configConst, simulationScenario);
 %configAoI.deltaLat
 %configAoI.deltaLon
 
+%%%%%%%%   testing parameters    %%%%%%%%%
+configAoI.latMin=43;
+configAoI.latMax=55;
+configAoI.lonMin=5;
+configAoI.lonMax=25;
+configAoI.deltaLat=2;
+configAoI.deltaLon=2;
+numUsers=10;
+
+
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES

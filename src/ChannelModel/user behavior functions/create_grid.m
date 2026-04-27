@@ -7,13 +7,13 @@ function grid=create_grid(configAoI)
     %The next rows of code will be moved into another file
 
     grid.edges_lat=configAoI.latMin : configAoI.deltaLat : configAoI.latMax;
-    grid.edges_lon=configAoI.lonMin . configAoI.deltaLon : configAoI.lonMax;
+    grid.edges_lon=configAoI.lonMin : configAoI.deltaLon : configAoI.lonMax;
 
     grid.num_box_lat = size(grid.edges_lat,2)-1;
     grid.num_box_lon = size(grid.edges_lon,2)-1;
 
-    grid.centerP_lat=grid.edgesLat(1:end-1) + configAoI.deltaLat/2;
-    grid.centerP_lon=grid.edgesLon(1:end-1) + configAoI.deltaLon/2;
+    grid.centerP_lat=grid.edges_lat(1:end-1) + configAoI.deltaLat/2;
+    grid.centerP_lon=grid.edges_lon(1:end-1) + configAoI.deltaLon/2;
 
 
     %list of the cities that could be inside the simulation box. The reasoning is the
@@ -48,19 +48,20 @@ function grid=create_grid(configAoI)
     %the two anonymous functions below, given the coordinates, returns the
     %indexes of that point in the grid. These indexes will be used to
     %assign the categories to each box.
-    latToIdx = @(lat) min(max(floor((lat - cfg.lat_min) / cfg.dLat) + 1, 1), grid.num_box_lat);
-    lonToIdx = @(lon) min(max(floor((lon - cfg.lon_min) / cfg.dLon) + 1, 1), grid.num_box_lon);
+    latToIdx = @(lat) min(max(floor((lat - configAoI.latMin) / configAoI.deltaLat) + 1, 1), grid.num_box_lat);
+    lonToIdx = @(lon) min(max(floor((lon - configAoI.lonMin) / configAoI.deltaLon) + 1, 1), grid.num_box_lon);
 
 
     %this block assign the category 2(urban in the ITU-R standard) to the boxes in the grid that
     %contains the cities. We only assign the category 2 to the boxes that
     %contains cities. Since the list of cities is hard-coded, all the
     %cities that are not inside the borders of the grid will be jumped.
+    grid.cellCategory = zeros(grid.num_box_lat, grid.num_box_lon);
     for k = 1:size(metroNames, 1)
         latC = metroNames{k, 2};
         lonC = metroNames{k, 3};
 
-        if latC < cfg.lat_min || latC > cfg.lat_max || lonC < cfg.lon_min || lonC > cfg.lon_max    %if that cities execeds the borders of the grid
+        if latC < configAoI.latMin || latC > configAoI.latMax || lonC < configAoI.lonMin || lonC > configAoI.lonMax    %if that cities execeds the borders of the grid
             continue;
         end
 
@@ -82,7 +83,7 @@ function grid=create_grid(configAoI)
                 ii = i0 + di;
                 jj = j0 + dj;
 
-                if ii >= 1 && ii <= grid.nLat && jj >= 1 && jj <= grid.nLon
+                if ii >= 1 && ii <= grid.num_box_lat && jj >= 1 && jj <= grid.num_box_lon
                     if grid.cellCategory(ii,jj) ~= 2       %in the case there are 2 cities in adiacen blocks
                         grid.cellCategory(ii,jj) = max(grid.cellCategory(ii,jj), 1);
                     end
@@ -95,11 +96,11 @@ function grid=create_grid(configAoI)
     %each box in the grid, assign the ITU-R environment to each box. The
     %boxes with category 1 will be assigned randomly to "Village" or
     %"RuralWooded" environments.
-    grid.cellWeight = ones(grid.nLat, grid.nLon);
-    grid.env        = strings(grid.nLat, grid.nLon);
+    grid.cellWeight = ones(grid.num_box_lat, grid.num_box_lon);
+    grid.env        = strings(grid.num_box_lat, grid.num_box_lon);
 
-    for i = 1:grid.nLat
-        for j = 1:grid.nLon
+    for i = 1:grid.num_box_lat
+        for j = 1:grid.num_box_lon
             switch grid.cellCategory(i,j)
                 case 2
                     grid.cellWeight(i,j) = 9;

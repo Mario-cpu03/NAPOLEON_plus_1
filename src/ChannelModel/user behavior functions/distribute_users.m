@@ -11,6 +11,10 @@
 
 function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numUsers,grid)
 
+    
+    %all the users' parameters will be saved inside a struct. These
+    %parameters would be usefull for the next functions.
+
     users.lat     = zeros(numUsers, 1);
     users.lon     = zeros(numUsers, 1);
     users.env     = strings(numUsers, 1);
@@ -41,10 +45,10 @@ function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numU
         %block assign tonthe user the position inside the cell. That
         %position will be chosen with a normal distribution. Eg.
         %position=minimum_edge+cell_amplitude*rand.
-        thisLatMin = grid.edgesLat(iLat);
-        thisLatMax = grid.edgesLat(iLat + 1);
-        thisLonMin = grid.edgesLon(iLon);
-        thisLonMax = grid.edgesLon(iLon + 1);
+        thisLatMin = grid.edges_lat(iLat);
+        thisLatMax = grid.edges_lat(iLat + 1);
+        thisLonMin = grid.edges_lon(iLon);
+        thisLonMax = grid.edges_lon(iLon + 1);
         users.lat(u) = thisLatMin + (thisLatMax - thisLatMin) * rand;
         users.lon(u) = thisLonMin + (thisLonMax - thisLonMin) * rand;
 
