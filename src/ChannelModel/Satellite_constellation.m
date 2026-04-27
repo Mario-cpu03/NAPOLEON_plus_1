@@ -1,5 +1,5 @@
 %% Satellite_constellation function
-% This function computes the whole First Shell Starlink Constellation in
+% This function computes the whole second Shell Starlink Constellation in
 % compliance with the FCC 21-48 authorization. That is, the 540km altitude, 
 % 72 orbital planes, 22 satellites per orbital plane, constellation. 
 
@@ -23,5 +23,34 @@
 %       can be accessed as Satellites object
 
 function [simulationScenario]=Satellite_constellation(configConst, simulationScenario)
+% Define phase offset parametrized via F
+beta = configConst.phasingParam*(360)/(configConst.planes*configConst.satPlanes);
+
+%%ALTERNATIVE STRATEGY: to limit the access on the data structure, we use
+%%single data params
+
+%% Main loop for the construction of the saellite objects
+for currentPlane = 1:configConst.planes
+    % Right Ascension of the Ascending Node computation. We need to space
+    % planes of a deltaquantity (the raan) so that they are equispaced
+    raan = (currentPlane-1)*360/configConst.planes;
+
+    %% Loop for the satellite allocation 
+    % for each currentSat we instantiate a Satellite object in each plane 
+    for currentSat = 1:configConst.satPlanes
+        nu = (currentSat - 1) *360/configConst.satPlanes;%true anomaly, or nu, representing the satellite position across its plane
+        nu = mod(nu +(currentPlane-1) * beta,360); %plane dependant phase shift compliant with Optimization of User–LEO Satellite Assignments
+    
+        % Satellite object creation
+        satellite(simulationScenario, ...
+            (6371 + configConst.altitude)*1e3, ... % 6371 is the earth raidus, whilst the whole computation is the semi major axis of rotation of the satellites
+            0, ...
+            configConst.inclination, ...
+            raan, ...
+            0, ...
+            nu, ...
+            Name=sprintf("SAT_%d_%d", currentPlane, currentSat)); % name of each satellite of the format: SAT_#plane_#satellite
+    end
+end
 
 end
