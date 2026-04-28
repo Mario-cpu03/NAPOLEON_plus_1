@@ -9,7 +9,7 @@
 
 
 
-function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numUsers,grid)
+function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numUsers,UserGrid)
 
     users.lat     = zeros(numUsers, 1);
     users.lon     = zeros(numUsers, 1);
@@ -29,22 +29,22 @@ function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numU
         %higher value in the CDF. The index of that value will be the index
         %of the cell where the user will be located.
         r=rand;
-        idx=find(r<=grid.cdf,1,'first');
+        idx=find(r<=UserGrid.cdf,1,'first');
 
 
         %This block converts the linear index idx in the couple [iLat,
         %iLon] of the grid
-        [iLat, iLon] = ind2sub([grid.num_box_lat, grid.num_box_lon], idx);
+        [iLat, iLon] = ind2sub([UserGrid.nLat, UserGrid.nLon], idx);
 
 
         %We have defined the cell where the user will be located. This
         %block assign tonthe user the position inside the cell. That
         %position will be chosen with a normal distribution. Eg.
         %position=minimum_edge+cell_amplitude*rand.
-        thisLatMin = grid.edgesLat(iLat);
-        thisLatMax = grid.edgesLat(iLat + 1);
-        thisLonMin = grid.edgesLon(iLon);
-        thisLonMax = grid.edgesLon(iLon + 1);
+        thisLatMin = UserGrid.edgesLat(iLat);
+        thisLatMax = UserGrid.edgesLat(iLat + 1);
+        thisLonMin = UserGrid.edgesLon(iLon);
+        thisLonMax = UserGrid.edgesLon(iLon + 1);
         users.lat(u) = thisLatMin + (thisLatMax - thisLatMin) * rand;
         users.lon(u) = thisLonMin + (thisLonMax - thisLonMin) * rand;
 
@@ -53,7 +53,7 @@ function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numU
         %located. 
         
         users.cellIdx(u,:) = [iLat, iLon];
-        groundEnv(u)=grid.env(iLat, iLon);
+        groundEnv(u)=UserGrid.env(iLat, iLon);
 
 
         %This block creates the object "groundStation" in the scenario sc.

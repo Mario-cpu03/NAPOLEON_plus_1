@@ -25,6 +25,9 @@
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
+% Adding general path for all helper functions
+addpath('user behavior functions'); %helper functions for user behavior modeling
+
 % Init output structure
 USER_SAT_evolution = struct();
 

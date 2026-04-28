@@ -14,7 +14,7 @@ viewer = satelliteScenarioViewer(filteredSimScen);
 orb = orbit(filteredSimScen.Satellites);
 show(orb);
 
-play(filteredSimScen);
+%play(filteredSimScen);
 
 
 end
