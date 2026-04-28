@@ -28,11 +28,14 @@ function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTim
 % Adding general path for all helper functions
 addpath('user behavior functions'); %helper functions for user behavior modeling
 
-% Init output structure
-USER_SAT_evolution = struct();
-
 % Init starting satellite scenario object with time intervals of reference
+%%OPTIMIZE COMPUTATIONAL COMPLEXITY
+% check computational time for each function of the main.
+tic % "starts timer"
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
+fprintf('Scenario initialization: %.3f s\n', toc); 
+%Observed:
+%% Scenario initialization: 0.991 s
 
 % Constellation fixed parameters, to be found on paragraph 4 chapter 2 of
 % the FCC 21-48.
@@ -59,10 +62,24 @@ configAoI = struct( ...
             'deltaLon', 2);
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
-simulationScenario=Satellite_constellation(configConst, simulationScenario);
+%%OPTIMIZE COMPUTATIONAL COMPLEXITY
+% check computational time for each function of the main.
+tic % "starts timer"
+simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
+fprintf('Satellite constellation generation: %.3f s\n', toc);
+% Observed:
+%% Satellite constellation generation: 109.657 s
+% NEW VERSION, OBSERVED:
+%% Satellite constellation generation: 1.319 s
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
+%%OPTIMIZE COMPUTATIONAL COMPLEXITY
+% check computational time for each function of the main.
+tic % "starts timer"
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
+fprintf('User behavior generation: %.3f s\n', toc);
+% We observe
+%% User behavior generation: 0.377 s
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
 filteredSimScen=Filter_constellation(simulationScenario, minimumElev);
