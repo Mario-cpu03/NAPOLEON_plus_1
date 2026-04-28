@@ -28,8 +28,19 @@ sampleTime = 60; % seconds, maybe less in future
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 10; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 30; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
 % asked to set a new value
+
+%%%%%% ------ CHANNEL MODEL MODULE EXECUTION ----- %%%%%%
+% We call the main_channel_function to obtain the temporal evolution of the
+% satellite to user links. The USER_SAT_evolution datastructure is the
+% object of relevance, as it contains:
+%                                   (i) ... TODEFINE
+
+% Init channel module output structure
+USER_SAT_evolution = struct();
+
+[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
