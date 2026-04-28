@@ -41,6 +41,6 @@ numUsers = 30; % Example number of users, TODO GUI. Momentarily hard-coded
 %                                   (i) ... TODEFINE
 
 % Init channel module output structure
-USER_SAT_evolution = struct();
+USER_SAT_evolution = struct(); %cell vector
 
 [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)

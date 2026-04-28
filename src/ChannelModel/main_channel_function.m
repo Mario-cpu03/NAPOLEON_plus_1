@@ -69,6 +69,8 @@ simulationScenario=Satellite_constellation(configConst, simulationScenario);%"en
 fprintf('Satellite constellation generation: %.3f s\n', toc);
 % Observed:
 %% Satellite constellation generation: 109.657 s
+% NEW VERSION, OBSERVED:
+%% Satellite constellation generation: 1.319 s
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
 %%OPTIMIZE COMPUTATIONAL COMPLEXITY
