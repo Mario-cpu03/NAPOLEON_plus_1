@@ -1,20 +1,21 @@
-function grid=create_grid(configAoI)  
+function UserGrid=create_grid(configAoI)  
 
 
-    %the sequent part need a fix. The part that build the grid and the one
+    %the sequent part need a fix. The part that build the Grid and the one
     %that define the users' distribution should be in 2 different files. In
     %this way the code will be more flexible.
     %The next rows of code will be moved into another file
 
-    grid.edges_lat=configAoI.latMin : configAoI.deltaLat : configAoI.latMax;
-    grid.edges_lon=configAoI.lonMin : configAoI.deltaLon : configAoI.lonMax;
+    UserGrid.edgesLat=configAoI.latMin : configAoI.deltaLat : configAoI.latMax;
+    UserGrid.edgesLon=configAoI.lonMin : configAoI.deltaLon : configAoI.lonMax;
 
-    grid.num_box_lat = size(grid.edges_lat,2)-1;
-    grid.num_box_lon = size(grid.edges_lon,2)-1;
+    UserGrid.nLat = size(UserGrid.edgesLat,2)-1;
+    UserGrid.nLon = size(UserGrid.edgesLon,2)-1;
 
-    grid.centerP_lat=grid.edges_lat(1:end-1) + configAoI.deltaLat/2;
-    grid.centerP_lon=grid.edges_lon(1:end-1) + configAoI.deltaLon/2;
+    UserGrid.centerP_lat=UserGrid.edgesLat(1:end-1) + configAoI.deltaLat/2;
+    UserGrid.centerP_lon=UserGrid.edgesLon(1:end-1) + configAoI.deltaLon/2;
 
+    UserGrid.cellCategory = zeros(UserGrid.nLat, UserGrid.nLon); % INITIALIZATION
 
     %list of the cities that could be inside the simulation box. The reasoning is the
     %sequent: we assign the higher category to the boxes that contains
@@ -46,34 +47,33 @@ function grid=create_grid(configAoI)
 
 
     %the two anonymous functions below, given the coordinates, returns the
-    %indexes of that point in the grid. These indexes will be used to
+    %indexes of that point in the Grid. These indexes will be used to
     %assign the categories to each box.
-    latToIdx = @(lat) min(max(floor((lat - configAoI.latMin) / configAoI.deltaLat) + 1, 1), grid.num_box_lat);
-    lonToIdx = @(lon) min(max(floor((lon - configAoI.lonMin) / configAoI.deltaLon) + 1, 1), grid.num_box_lon);
+    latToIdx = @(lat) min(max(floor((lat - configAoI.latMin) / configAoI.deltaLat) + 1, 1), UserGrid.nLat);
+    lonToIdx = @(lon) min(max(floor((lon - configAoI.lonMin) / configAoI.deltaLon) + 1, 1), UserGrid.nLon);
 
 
-    %this block assign the category 2(urban in the ITU-R standard) to the boxes in the grid that
+    %this block assign the category 2(urban in the ITU-R standard) to the boxes in the Grid that
     %contains the cities. We only assign the category 2 to the boxes that
     %contains cities. Since the list of cities is hard-coded, all the
-    %cities that are not inside the borders of the grid will be jumped.
-    grid.cellCategory = zeros(grid.num_box_lat, grid.num_box_lon);
+    %cities that are not inside the borders of the Grid will be jumped.
     for k = 1:size(metroNames, 1)
         latC = metroNames{k, 2};
         lonC = metroNames{k, 3};
 
-        if latC < configAoI.latMin || latC > configAoI.latMax || lonC < configAoI.lonMin || lonC > configAoI.lonMax    %if that cities execeds the borders of the grid
+        if latC < configAoI.latMin || latC > configAoI.latMax || lonC < configAoI.lonMin || lonC > configAoI.lonMax    %if that cities execeds the borders of the Grid
             continue;
         end
 
         iLat = latToIdx(latC);
         iLon = lonToIdx(lonC);
-        grid.cellCategory(iLat, iLon) = 2;
+        UserGrid.cellCategory(iLat, iLon) = 2;
     end
 
 
     %this block marks the 8 boxes around the ones with category 2 with
     %category 1 (surrounding in the ITU-R standard).
-    [metroI, metroJ] = find(grid.cellCategory == 2);
+    [metroI, metroJ] = find(UserGrid.cellCategory == 2);
     for k = 1:numel(metroI)
         i0 = metroI(k);
         j0 = metroJ(k);
@@ -83,9 +83,9 @@ function grid=create_grid(configAoI)
                 ii = i0 + di;
                 jj = j0 + dj;
 
-                if ii >= 1 && ii <= grid.num_box_lat && jj >= 1 && jj <= grid.num_box_lon
-                    if grid.cellCategory(ii,jj) ~= 2       %in the case there are 2 cities in adiacen blocks
-                        grid.cellCategory(ii,jj) = max(grid.cellCategory(ii,jj), 1);
+                if ii >= 1 && ii <= UserGrid.nLat && jj >= 1 && jj <= UserGrid.nLon
+                    if UserGrid.cellCategory(ii,jj) ~= 2       %in the case there are 2 cities in adiacen blocks
+                        UserGrid.cellCategory(ii,jj) = max(UserGrid.cellCategory(ii,jj), 1);
                     end
                 end
             end
@@ -93,29 +93,29 @@ function grid=create_grid(configAoI)
     end
 
     %the block below, given the category that we already assigned to
-    %each box in the grid, assign the ITU-R environment to each box. The
+    %each box in the Grid, assign the ITU-R environment to each box. The
     %boxes with category 1 will be assigned randomly to "Village" or
     %"RuralWooded" environments.
-    grid.cellWeight = ones(grid.num_box_lat, grid.num_box_lon);
-    grid.env        = strings(grid.num_box_lat, grid.num_box_lon);
+    UserGrid.cellWeight = ones(UserGrid.nLat, UserGrid.nLon);
+    UserGrid.env        = strings(UserGrid.nLat, UserGrid.nLon);
 
-    for i = 1:grid.num_box_lat
-        for j = 1:grid.num_box_lon
-            switch grid.cellCategory(i,j)
+    for i = 1:UserGrid.nLat
+        for j = 1:UserGrid.nLon
+            switch UserGrid.cellCategory(i,j)
                 case 2
-                    grid.cellWeight(i,j) = 9;
-                    grid.env(i,j)        = "Urban";
+                    UserGrid.cellWeight(i,j) = 9;
+                    UserGrid.env(i,j)        = "Urban";
 
                 case 1
-                    grid.cellWeight(i,j) = 3;
-                    grid.env(i,j)        = "Suburban";
+                    UserGrid.cellWeight(i,j) = 3;
+                    UserGrid.env(i,j)        = "Suburban";
 
                 otherwise
-                    grid.cellWeight(i,j) = 1;
+                    UserGrid.cellWeight(i,j) = 1;
                     if rand < 0.5
-                        grid.env(i,j) = "Village";
+                        UserGrid.env(i,j) = "Village";
                     else
-                        grid.env(i,j) = "RuralWooded";
+                        UserGrid.env(i,j) = "RuralWooded";
                     end
             end
         end
@@ -123,13 +123,13 @@ function grid=create_grid(configAoI)
 
 
     %these lines of code prepare the distribution of users for the weighted sampling. Having a Cumulative Distribution
-    %Function (CDF) we can easily distribute the users in the grid
+    %Function (CDF) we can easily distribute the users in the Grid
     %following the weight. In this way, the boxes with the higher weights
     %will have an higer interval in the CDF, so the probability to be
     %chosen for the users will be higher
-    flatWeights   = grid.cellWeight(:);
-    grid.prob     = flatWeights / sum(flatWeights);
-    grid.cdf      = cumsum(grid.prob);
-    grid.cdf(end) = 1.0;
+    flatWeights   = UserGrid.cellWeight(:);
+    UserGrid.prob     = flatWeights / sum(flatWeights);
+    UserGrid.cdf      = cumsum(UserGrid.prob);
+    UserGrid.cdf(end) = 1.0;
 
 end
