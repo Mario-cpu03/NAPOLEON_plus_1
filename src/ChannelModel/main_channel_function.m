@@ -25,6 +25,9 @@
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
+% Adding general path for all helper functions
+addpath('user behavior functions'); %helper functions for user behavior modeling
+
 % Init output structure
 USER_SAT_evolution = struct();
 
@@ -40,11 +43,20 @@ configConst = struct( ...
               'phasingParam', 17, ... % Phasing param multiplying phasing offset obtained in Phasing Parameter Analysis for Satellite Collision Avoidance in Starlink and Kuiper Constellations
               'altitude', 540); % Altitude of the (second) shell
 
-% Init user parameters.  We assume a small italy-centric portion of europe,
+% Init user parameters.  We assume a small europe-centric portion of earth,
 % in which a multi distributed user behavior is assumed. The
 % users are static (mobile speed = 0) for simplicity. The user may as well
 % be though of as base stations, hence antennas.
-%% TODO - most probably Santi's business
+
+%%%%%%%%   testing parameters    %%%%%%%%%
+
+configAoI = struct( ...
+            'latMin', 43, ...
+            'latMax', 55, ...
+            'lonMin', 5, ...
+            'lonMax', 25, ...
+            'deltaLat', 2, ...
+            'deltaLon', 2);
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);

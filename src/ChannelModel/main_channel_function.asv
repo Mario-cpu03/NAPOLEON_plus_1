@@ -25,32 +25,52 @@
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
-% Init output structures
-filteredSatellite_Set = struct();
-SATELLITE_Set = struct();
+% Adding general path for all helper functions
+addpath('user behavior functions'); %helper functions for user behavior modeling
+
+% Init output structure
 USER_SAT_evolution = struct();
 
-% Constellation fixed parameters.
+% Init starting satellite scenario object with time intervals of reference
+simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
 
+% Constellation fixed parameters, to be found on paragraph 4 chapter 2 of
+% the FCC 21-48.
+configConst = struct( ...
+              'planes', 72, ... % Total number of orbital planes, integer variable, must be reduced in Filter_constellation 
+              'satPlanes', 22, ... % Total number of satellites per plane, integer variable, most probably will not be reduced in Filter_constellation 
+              'inclination', 53.2, ... % Equatorial inclination of the orbit, float variable, .2 degrees more inclinated than 2020 constellation
+              'phasingParam', 17, ... % Phasing param multiplying phasing offset obtained in Phasing Parameter Analysis for Satellite Collision Avoidance in Starlink and Kuiper Constellations
+              'altitude', 540); % Altitude of the (second) shell
 
-% Init user parameters.  We assume a small italy-centric portion of europe,
+% Init user parameters.  We assume a small europe-centric portion of earth,
 % in which a multi distributed user behavior is assumed. The
 % users are static (mobile speed = 0) for simplicity. The user may as well
 % be though of as base stations, hence antennas.
 
+%%%%%%%%   testing parameters    %%%%%%%%%
+
+configAoI = struct( ...
+            'latMin', 43, ...
+            'latMax', 55, ...
+            'lonMin', 5, ...
+            'lonMax', 25, ...
+            'deltaLat', 2, ...
+            'deltaLon', 2);
+
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
-simulationScenario = Satellite_constellation(configConst, simulationScenario); 
+simulationScenario=Satellite_constellation(configConst, simulationScenario);
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
-[simulationScenario, groundEnv] = User_behavior(configAoI, numUsers, simulationScenario); 
+[simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
-filteredS = Filter_constellation(simulationScenario, minimumElev); %
+filteredSimScen=Filter_constellation(simulationScenario, minimumElev);
 
 % CALL DISPLAY FUNCTION
-Display_globe(filteredSatellite_Set, USERS_Set); 
+Display_globe(filteredSimScen); 
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
-USER_SAT_evolution = channel_model();
+USER_SAT_evolution = channel_model(configChannel, filteredSimScen, groundEnv);
 
 end
