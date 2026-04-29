@@ -8,10 +8,10 @@
 % ECEF-based engine, avoiding repeated calls to aer().
 %
 % The output is a time-indexed data structure containing:
-%       (i)   the simulation time vector,
-%       (ii)  the visible satellites for each user at each time step,
+%       (i) the simulation time vector,
+%       (ii) the visible satellites for each user at each time step,
 %       (iii) the corresponding elevation angles,
-%       (iv)  the corresponding slant distances.
+%       (iv) the corresponding slant distances.
 %
 % IMPORTANT:
 % The function assumes that the input satelliteScenario object already
@@ -27,22 +27,22 @@
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
 %       1. visibilityData : Data Structure containing the dynamic
 %       visibility information:
-%                   (i)   timeVec : row vector of simulation times
-%                   (ii)  visibleSatIdx : cell array of size [T,U], where
+%                   (i) timeVec : row vector of simulation times
+%                   (ii) visibleSatIdx : cell array of size [T,U], where
 %                         each cell contains the indices of the satellites
 %                         visible to user u at time step t
 %                   (iii) elevationDeg : cell array of size [T,U], where
 %                         each cell contains the elevations of the visible
 %                         satellites
-%                   (iv)  distanceKm : cell array of size [T,U], where each
+%                   (iv)distanceKm : cell array of size [T,U], where each
 %                         cell contains the slant distances of the visible
 %                         satellites
-%                   (v)   visibilityMask : logical array of size [U,S,T]
-%                   (vi)  elevationMatrix : array of size [U,S,T]
+%                   (v) visibilityMask : logical array of size [U,S,T]
+%                   (vi) elevationMatrix : array of size [U,S,T]
 %                   (vii) distanceMatrix : array of size [U,S,T]
 %                   (viii) numUsers : number of ground stations
-%                   (ix)  numSats : number of satellites
-%                   (x)   numTimeSteps : number of time samples
+%                   (ix)numSats : number of satellites
+%                   (x) numTimeSteps : number of time samples
 
 
 %% %% %% AN IMPORTANT NOTE %% %% %%
@@ -116,12 +116,11 @@ for currentTimeIdx = 1:timeIndex
         % Visible satellite indices for the current user and time step
         currentVisibleSatIdx = find(currentVisibilityMask);
 
-        % Storage in dense matrices
         visibilityMask(currentUser,:,currentTimeIdx) = currentVisibilityMask;
         elevationMatrix(currentUser,:,currentTimeIdx) = elevationCurrent;
         distanceMatrix(currentUser,:,currentTimeIdx) = slantCurrentKm;
 
-        % Storage in cell arrays
+        %Cell
         visibleSatIdx{currentTimeIdx,currentUser} = currentVisibleSatIdx;
         elevationDeg{currentTimeIdx,currentUser} = elevationCurrent(currentVisibleSatIdx);
         distanceKm{currentTimeIdx,currentUser} = slantCurrentKm(currentVisibleSatIdx);
@@ -132,10 +131,12 @@ end
 % Building the actual output structure
 visibilityData.timeVec = timeVec;
 
+%%CURRENTLY RELEVANT PUTPUT
 visibilityData.visibleSatIdx = visibleSatIdx;
 visibilityData.elevationDeg = elevationDeg;
 visibilityData.distanceKm = distanceKm;
 
+%%FUTURE-PROOF OUTPUT
 visibilityData.visibilityMask = visibilityMask;
 visibilityData.elevationMatrix = elevationMatrix;
 visibilityData.distanceMatrix = distanceMatrix;

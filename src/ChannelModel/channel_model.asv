@@ -13,35 +13,44 @@
 %
 %       2. visibilityData: Data structure containing the dynamic
 %       visibility information, of which we will only exploit:
-%                   (i) timeVec : row vector of simulation times
-%                   (ii) visibleSatIdx : cell array of size [T,U], where
+%                   (i)   timeVec : row vector of simulation times
+%                   (ii)  visibleSatIdx : cell array of size [T,U], where
 %                         each cell contains the indices of the satellites
 %                         visible to user u at time step t
 %                   (iii) elevationDeg : cell array of size [T,U], where
 %                         each cell contains the elevations of the visible
 %                         satellites
-%                   (iv) distanceKm : cell array of size [T,U], where each
+%                   (iv)  distanceKm : cell array of size [T,U], where each
 %                         cell contains the slant distances of the visible
 %                         satellites
-%                   (v) numUsers : number of ground stations
-%                   (vi) numSats : number of satellites
-%                   (vii) numTimeSteps : number of time samples
+%                   (viii) numUsers : number of ground stations
+%                   (ix)  numSats : number of satellites
+%                   (x)   numTimeSteps : number of time samples
 %
 %       3. groundEnv: column vector of size numUsers containing each
 %       ground station's environment.
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
 %       1. USER_SAT_evolution: Data structure potentially containing 
-%                       (i) USER_SAT_evolution.timeVec
-%                       (ii) USER_SAT_evolution.validLinkMask
-%                       (iii) USER_SAT_evolution.SNR_matrix                           
-%                       (iv) USER_SAT_evolution.rateMatrix                          
-%                       (v) USER_SAT_evolution.pathGainMatrix                           
-%                       (vi) distanceMatrix                     
-%                       (vii) elevationMatrix                           
-%                       (viii) numUsers                    
-%                       (ix) numSats               
-%                       (x) numTimeSteps
+%                    (i) USER_SAT_evolution.timeVec
+
+%                   ()USER_SAT_evolution.validLinkMask
+                            
+%USER_SAT_evolution.SNR_matrix
+                            
+%USER_SAT_evolution.rateMatrix
+                            
+%USER_SAT_evolution.pathGainMatrix
+                            
+%distanceMatrix
+                            
+%elevationMatrix
+                            
+%numUsers
+                            
+%numSats
+                            
+%numTimeSteps
 
 
 function [USER_SAT_evolution]=channel_model(configChannel, groundEnv, visibilityData)

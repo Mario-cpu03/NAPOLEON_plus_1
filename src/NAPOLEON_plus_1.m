@@ -41,5 +41,4 @@ numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
 %                                   (i) ... TODEFINE
 
 % Init channel module output structure
-
 [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime);

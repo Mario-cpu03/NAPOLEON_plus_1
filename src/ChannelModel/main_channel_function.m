@@ -1,8 +1,7 @@
 %% Main Function Channel Model Module
 % The scope of this function is to call and execute all the channel model 
 % module functions that implement: (i) user behavior, (ii) satellite
-% constellation, (iii) reduce the constellation to the relevant coordinates,
-% (iv) display the globe with users and satellites, (v) user-satellite
+% constellation, (iii) display the globe with users and satellites, (iv) user-satellite
 % links overtime.
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
@@ -24,7 +23,7 @@
 %       evolution of the channel's parameters of each user-satellite link.
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
-tic
+
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
@@ -58,19 +57,23 @@ configAoI = struct( ...
 % to FCC 21-48 documentation.
 minimumElev = 25;
 
+
+%%Init channel parameters. 
+% We assume
+
+configChannel = struct();
+
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
-% REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
-visibilityData = Filter_constellation(simulationScenario, minimumElev);
-
-fprintf('Simulation: %.3f s/n', toc);
-
 % CALL DISPLAY FUNCTION
 Display_globe(simulationScenario); 
+
+% REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
+visibilityData = Filter_constellation(simulationScenario, minimumElev);
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
