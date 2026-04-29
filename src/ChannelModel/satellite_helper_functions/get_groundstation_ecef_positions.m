@@ -7,12 +7,23 @@
 % against aer() on a reduced number of samples.
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
-%       1. Gs :GroundStation objects
+%       1. Gs : array of GroundStation objects
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
 %       1. userPositionECEF : array of size [3,numUsers] containing the
 %       ECEF position vector of each ground station
 
 function [userPositionECEF] = get_groundstation_ecef_positions(Gs)
+
+numUsers = numel(Gs);
+userPositionECEF = zeros(3,numUsers);
+
+for currentUser = 1:numUsers
+    latDeg = Gs(currentUser).Latitude;
+    lonDeg = Gs(currentUser).Longitude;
+    userPositionECEF(:,currentUser) = geodetic_to_ecef_spherical( ...
+        latDeg, ...
+        lonDeg);
+end
 
 end

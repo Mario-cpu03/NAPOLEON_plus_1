@@ -46,5 +46,92 @@
 
 function [visibilityData] = Filter_constellation(simulationScenario, minimumElev)
 
+%%Retrieval of the objects already stored in the scenario
+S = simulationScenario.Satellites;
+Gs = simulationScenario.GroundStations;
+
+numSats = numel(S);
+numGs = numel(Gs);
+
+%%Time vector construction
+timeVec = simulationScenario.StartTime : seconds(simulationScenario.SampleTime) : simulationScenario.StopTime;
+numTimeSteps = numel(timeVec);
+
+%%Preallocation of the output data structures
+visibleSatIdx = cell(numTimeSteps, numGs);
+elevationDeg  = cell(numTimeSteps, numGs);
+distanceKm    = cell(numTimeSteps, numGs);
+
+% Dense matrices are useful for the following Channel_model and
+% UserSatAssoc modules. The matrix convention is:
+%       dimension 1 -> users
+%       dimension 2 -> satellites
+%       dimension 3 -> time samples
+visibilityMask  = false(numGs, numSats, numTimeSteps);
+elevationMatrix = NaN(numGs, numSats, numTimeSteps);
+distanceMatrix  = NaN(numGs, numSats, numTimeSteps);
+
+%% Extraction of satellite ECEF positions
+% satPositionECEF has size:
+%       3 x numSats x numTimeSteps
+satPositionECEF = get_satellite_ecef_positions(S, numTimeSteps);
+
+%% Extraction of ground station ECEF positions
+% userPositionECEF has size:
+%       3 x numUsers
+userPositionECEF = get_groundstation_ecef_positions(Gs);
+
+%% Dynamic visibility computation
+for currentTimeIdx = 1:numTimeSteps
+
+    % Satellite positions at the current time step:
+    %       3 x numSats
+    satPositionCurrent = satPositionECEF(:,:,currentTimeIdx);
+
+    for currentUser = 1:numGs
+
+        % Current user ECEF position:
+        %       3 x 1
+        userPositionCurrent = userPositionECEF(:,currentUser);
+
+        % Numerical computation of elevation and slant distance between the
+        % current user and all satellites at the current time step.
+        [elevationCurrent, distanceCurrentKm] = compute_visibility_snapshot( ...
+            satPositionCurrent, ...
+            userPositionCurrent);
+
+        % Visibility test
+        currentVisibilityMask = elevationCurrent >= minimumElev;
+
+        % Visible satellite indices for the current user and time step
+        currentVisibleSatIdx = find(currentVisibilityMask);
+
+        % Storage in dense matrices
+        visibilityMask(currentUser,:,currentTimeIdx) = currentVisibilityMask;
+        elevationMatrix(currentUser,:,currentTimeIdx) = elevationCurrent;
+        distanceMatrix(currentUser,:,currentTimeIdx) = distanceCurrentKm;
+
+        % Storage in cell arrays
+        visibleSatIdx{currentTimeIdx,currentUser} = currentVisibleSatIdx;
+        elevationDeg{currentTimeIdx,currentUser} = elevationCurrent(currentVisibleSatIdx);
+        distanceKm{currentTimeIdx,currentUser} = distanceCurrentKm(currentVisibleSatIdx);
+
+    end
+end
+
+%% Output data structure construction
+visibilityData.timeVec = timeVec;
+
+visibilityData.visibleSatIdx = visibleSatIdx;
+visibilityData.elevationDeg = elevationDeg;
+visibilityData.distanceKm = distanceKm;
+
+visibilityData.visibilityMask = visibilityMask;
+visibilityData.elevationMatrix = elevationMatrix;
+visibilityData.distanceMatrix = distanceMatrix;
+
+visibilityData.numUsers = numGs;
+visibilityData.numSats = numSats;
+visibilityData.numTimeSteps = numTimeSteps;
 
 end

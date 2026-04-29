@@ -12,5 +12,14 @@
 %       1. rECEF : ECEF position vector [m]
 
 function [rECEF] = geodetic_to_ecef_spherical(latDeg, lonDeg)
+earthRadius = 6371e3;
+latRad = deg2rad(latDeg);
+lonRad = deg2rad(lonDeg);
+
+x = earthRadius*cos(latRad)*cos(lonRad);
+y = earthRadius*cos(latRad)*sin(lonRad);
+z = earthRadius*sin(latRad);
+
+rECEF = [x; y; z];
 
 end

@@ -24,9 +24,10 @@
 %       evolution of the channel's parameters of each user-satellite link.
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
-
+tic
 %%Adding general path for all helper functions
-addpath('user behavior functions'); %helper functions for user behavior modeling
+addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
+addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
@@ -67,9 +68,9 @@ simulationScenario=Satellite_constellation(configConst, simulationScenario);%"en
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
-tic
-filteredSimScen=Filter_constellation(simulationScenario, minimumElev);
-fprintf('Filtering constellation: %.3f s/n', toc);
+visibilityData = Filter_constellation(simulationScenario, minimumElev)
+
+fprintf('Simulation: %.3f s/n', toc);
 
 % CALL DISPLAY FUNCTION
 Display_globe(filteredSimScen); 

@@ -22,5 +22,23 @@
 
 function [elevationCurrent, distanceCurrentKm] = compute_visibility_snapshot(satPositionCurrent, userPositionCurrent)
 
+% Local zenith unit vector. With the spherical Earth approximation, this is
+% the normalized ECEF position vector of the user.
+userZenith = userPositionCurrent/norm(userPositionCurrent);
 
+% Line-of-sight vectors from the user to all satellites:
+losVector = satPositionCurrent - userPositionCurrent;
+
+% Slant distances:
+%       1 x numSats
+distanceCurrent = sqrt(sum(losVector.^2,1));
+
+% Line-of-sight unit vectors
+losUnitVector = losVector ./ distanceCurrent;
+
+% Elevation angle computation as sin(elevation) = losUnitVector dot userZenith
+elevationCurrent = asind(userZenith.' * losUnitVector);
+
+% Conversion from meters to kilometers
+distanceCurrentKm = distanceCurrent/1e3;
 end
