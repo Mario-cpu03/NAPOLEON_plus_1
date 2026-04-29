@@ -31,18 +31,35 @@
 %       ground station's environment.
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
-%       1. USER_SAT_evolution: Data structure potentially containing 
-%                       (i) USER_SAT_evolution.timeVec
-%                       (ii) USER_SAT_evolution.validLinkMask
-%                       (iii) USER_SAT_evolution.SNR_matrix                           
-%                       (iv) USER_SAT_evolution.rateMatrix                          
-%                       (v) USER_SAT_evolution.pathGainMatrix                           
-%                       (vi) distanceMatrix                     
-%                       (vii) elevationMatrix                           
-%                       (viii) numUsers                    
-%                       (ix) numSats               
-%                       (x) numTimeSteps
+%           1. USER_SAT_evolution: Data structure containing usersatassoc critical 
+%           quantities, "metadata" linked to simulation consistency, and
+%           "advanced quantities". Those 
+%                       (i) timeVec: metadata-like quantity, to obtain the
+%                       time indexing
+%                       (ii) validLinkMask: critical quantity to derive the
+%                       axctual "active" links
+%                       (iii)SNRtensor: critical quantity to evaluate the 
+%                       quality of the link                            
+%                       (iv) ratetensor: critical quantity to evaluate the 
+%                       the throughput of each link
+%                       (v) pathGaintensor: critical diagnostic quantity                        
+%                       (vi) distanceMatrix: not cruial but core quantity                   
+%                       (vii) elevationMatrix: not cruial but core quantity                        
+%                       (viii) numUsers: metadata-like quantity, to run through the users                 
+%                       (ix) numSats : metadata-like quantity, to run through the satellites       
+%                       (x) numTimeSteps: metadata-like quantity, to run
+%                       through time indeces
 
+%% %% %% AN IMPORTANT NOTE %% %% %% 
+%%USER_SAT_evolution.validLinkMask, USER_SAT_evolution.SNR_matrix, 
+%%USER_SAT_evolution.rateMatrix, and USER_SAT_evolution.pathGainMatrix 
+%%can either be tensor or cell array. However, treating them as cell
+%%arrays, even if more computationally effective, could require a rescale
+%%of the weight matrix in the Association process, which yields a very
+%%let's say uneffective way of dealing with it. On the contrary, tensors
+%%with fixed dimensions will simply have numbers like 0 or -inf for
+%%unavailable links, by means of actual availability or snr or rate or
+%%gain, and meaningful values elsewhere. 
 
 function [USER_SAT_evolution]=channel_model(configChannel, groundEnv, visibilityData)
     
