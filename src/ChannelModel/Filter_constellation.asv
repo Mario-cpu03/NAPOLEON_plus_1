@@ -2,10 +2,13 @@
 % This function computes the time-evolution filtering of the full
 % constellation. The goal is determine, for each time step and
 % for each ground station, the set of satellites that are visible above a
-% prescribed elevation threshold, which is in compliance with the 
-% FCC 21-48 directives.
-% The main idea is to make the expensive visibility computation via a numerical 
-% ECEF-based engine, avoiding repeated calls to aer().
+% prescribed elevation threshold, which is in compliance with the FCC 21-48 directi.
+%
+% The function follows a mixed computational paradigm:
+%       (i)   the satelliteScenario object is kept as the reference object
+%             layer of the simulator;
+%       (ii)  the expensive visibility computation is performed through a
+%             numerical ECEF-based engine, avoiding repeated calls to aer().
 %
 % The output is a time-indexed data structure containing:
 %       (i)   the simulation time vector,
@@ -44,32 +47,32 @@
 %                   (ix)  numSats : number of satellites
 %                   (x)   numTimeSteps : number of time samples
 
-function [visibilityData] = Filter_constellation(simulationScenario, minimumElev)
+function [visibilityData] = Filtered_satellite(simulationScenario, minimumElev)
 
-%%Retrieval of the objects already stored in the scenario
+%% Retrieval of the objects already stored in the scenario
 S = simulationScenario.Satellites;
 Gs = simulationScenario.GroundStations;
 
 numSats = numel(S);
-numGs = numel(Gs);
+numUsers = numel(Gs);
 
-%%Time vector construction
+%% Time vector construction
 timeVec = simulationScenario.StartTime : seconds(simulationScenario.SampleTime) : simulationScenario.StopTime;
 numTimeSteps = numel(timeVec);
 
-%%Preallocation of the output data structures
-visibleSatIdx = cell(numTimeSteps, numGs);
-elevationDeg  = cell(numTimeSteps, numGs);
-distanceKm    = cell(numTimeSteps, numGs);
+%% Preallocation of the output data structures
+visibleSatIdx = cell(numTimeSteps, numUsers);
+elevationDeg  = cell(numTimeSteps, numUsers);
+distanceKm    = cell(numTimeSteps, numUsers);
 
 % Dense matrices are useful for the following Channel_model and
 % UserSatAssoc modules. The matrix convention is:
 %       dimension 1 -> users
 %       dimension 2 -> satellites
 %       dimension 3 -> time samples
-visibilityMask  = false(numGs, numSats, numTimeSteps);
-elevationMatrix = NaN(numGs, numSats, numTimeSteps);
-distanceMatrix  = NaN(numGs, numSats, numTimeSteps);
+visibilityMask  = false(numUsers, numSats, numTimeSteps);
+elevationMatrix = NaN(numUsers, numSats, numTimeSteps);
+distanceMatrix  = NaN(numUsers, numSats, numTimeSteps);
 
 %% Extraction of satellite ECEF positions
 % satPositionECEF has size:
@@ -88,7 +91,7 @@ for currentTimeIdx = 1:numTimeSteps
     %       3 x numSats
     satPositionCurrent = satPositionECEF(:,:,currentTimeIdx);
 
-    for currentUser = 1:numGs
+    for currentUser = 1:numUsers
 
         % Current user ECEF position:
         %       3 x 1
@@ -130,7 +133,7 @@ visibilityData.visibilityMask = visibilityMask;
 visibilityData.elevationMatrix = elevationMatrix;
 visibilityData.distanceMatrix = distanceMatrix;
 
-visibilityData.numUsers = numGs;
+visibilityData.numUsers = numUsers;
 visibilityData.numSats = numSats;
 visibilityData.numTimeSteps = numTimeSteps;
 

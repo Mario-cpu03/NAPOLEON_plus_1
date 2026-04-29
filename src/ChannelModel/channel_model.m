@@ -1,4 +1,4 @@
-%% channel_model function
+%% Channel_model function
 % This function defines the (random) information signal sent from each user
 % and filters them simulating the LMS channel in compliance with the ITU-R 
 % P.681 family. The goal is to obtain a representation of the
@@ -23,6 +23,5 @@
 
 
 function [USER_SAT_evolution]=channel_model(configChannel, filteredSimScen, groundEnv)
-
-
+    
 end
