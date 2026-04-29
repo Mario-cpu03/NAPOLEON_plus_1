@@ -25,17 +25,11 @@
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
 
-% Adding general path for all helper functions
+%%Adding general path for all helper functions
 addpath('user behavior functions'); %helper functions for user behavior modeling
 
-% Init starting satellite scenario object with time intervals of reference
-%%OPTIMIZE COMPUTATIONAL COMPLEXITY
-% check computational time for each function of the main.
-tic % "starts timer"
+%%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
-fprintf('Scenario initialization: %.3f s\n', toc); 
-%Observed:
-%% Scenario initialization: 0.991 s
 
 % Constellation fixed parameters, to be found on paragraph 4 chapter 2 of
 % the FCC 21-48.
@@ -46,48 +40,41 @@ configConst = struct( ...
               'phasingParam', 17, ... % Phasing param multiplying phasing offset obtained in Phasing Parameter Analysis for Satellite Collision Avoidance in Starlink and Kuiper Constellations
               'altitude', 540); % Altitude of the (second) shell
 
-% Init user parameters.  We assume a small europe-centric portion of earth,
-% in which a multi distributed user behavior is assumed. The
-% users are static (mobile speed = 0) for simplicity. The user may as well
-% be though of as base stations, hence antennas.
-
-%%%%%%%%   testing parameters    %%%%%%%%%
-
+%%Init user distribution parameters. 
+% We assume a small portion of earth focused on the continental europe 
+% in which a multi distributed user behavior is assumed. 
+% The users are static (mobile speed = 0) for simplicity. 
+% The user may as well be though of as base stations, hence antennas.
 configAoI = struct( ...
-            'latMin', 43, ...
-            'latMax', 55, ...
-            'lonMin', 5, ...
-            'lonMax', 25, ...
+            'latMin', 35, ...
+            'latMax', 60, ...
+            'lonMin', -10, ...
+            'lonMax', 30, ...
             'deltaLat', 2, ...
             'deltaLon', 2);
 
+%%Init minimum elevation threshold for static satellite filtering according
+% to FCC 21-48 documentation. Most propably, this theta_min parameter will
+% be the same for the time-dependant filtering, that is the dynamic
+% filtering of the considered satellite for the association problem and
+% channel instantiation of the channel_model function.
+minimumElev = 25;
+
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
-%%OPTIMIZE COMPUTATIONAL COMPLEXITY
-% check computational time for each function of the main.
-tic % "starts timer"
 simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
-fprintf('Satellite constellation generation: %.3f s\n', toc);
-% Observed:
-%% Satellite constellation generation: 109.657 s
-% NEW VERSION, OBSERVED:
-%% Satellite constellation generation: 1.319 s
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
-%%OPTIMIZE COMPUTATIONAL COMPLEXITY
-% check computational time for each function of the main.
-tic % "starts timer"
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
-fprintf('User behavior generation: %.3f s\n', toc);
-% We observe
-%% User behavior generation: 0.377 s
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
+tic
 filteredSimScen=Filter_constellation(simulationScenario, minimumElev);
+fprintf('Filtering constellation: %.3f s/n', toc);
 
 % CALL DISPLAY FUNCTION
 Display_globe(filteredSimScen); 
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
-USER_SAT_evolution = channel_model(configChannel, filteredSimScen, groundEnv);
+%USER_SAT_evolution = channel_model(configChannel, filteredSimScen, groundEnv);
 
 end

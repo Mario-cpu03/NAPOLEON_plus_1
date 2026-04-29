@@ -12,6 +12,11 @@
 
 clc; close all; clear
 
+%%%%%%% ------- MODULES VISIBILITY SETTINGS ------ %%%%%%%
+% We make the path of each module, hence each directory, visible from the
+% main function
+addpath('ChannelModel'); addpath('UserSatAssoc');addpath('KPIs');addpath('GUI'); 
+
 %%%%%%% ------- SCENARIO SETTINGS ------ %%%%%%%
 % We fix the simulation time to the orbital period od a single satellite.
 % Regarless of its position with respect to a given user, to avoid
@@ -28,7 +33,7 @@ sampleTime = 60; % seconds, maybe less in future
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 30; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
