@@ -12,6 +12,11 @@
 
 clc; close all; clear
 
+%%%%%%% ------- MODULES VISIBILITY SETTINGS ------ %%%%%%%
+% We make the path of each module, hence each directory, visible from the
+% main function
+addpath('ChannelModel'); addpath('UserSatAssoc');addpath('KPIs');addpath('GUI'); 
+
 %%%%%%% ------- SCENARIO SETTINGS ------ %%%%%%%
 % We fix the simulation time to the orbital period od a single satellite.
 % Regarless of its position with respect to a given user, to avoid
@@ -19,7 +24,17 @@ clc; close all; clear
 
 startTime  = datetime('today');
 stopTime   = startTime + hours(1) + minutes(36);
-sampleTime = 60; % seconds, maybe less in future
+
+% At h = 540 km and elevation >= 35 deg, a favorable pass lasts
+% about tVis = 190 s. To fix the sample time at 10 seconds means to have a
+% total number of samples in the visibility window of about
+% sampleTime = tVis / N => N ~ 190 / 10 = 19 samples
+
+% A lighter version to fix approximately 8 samples per visibility time,
+% similarly, yields sampleTime = 24s, with some margin for shorter passage
+% we may fix sampleTime = 20. That is, a total of 289 samples in the 1h35m
+% simulation time window.
+sampleTime = 20; % seconds
 
 
 %%%%%% ------ GUI DEPENDANT QUANTITIES ----- %%%%%%
@@ -41,4 +56,6 @@ numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
 %                                   (i) ... TODEFINE
 
 % Init channel module output structure
-[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime);
+%USER_SAT_evolution = struct(); %cell vector
+
+[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
