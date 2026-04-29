@@ -15,5 +15,15 @@
 %       sample
 
 function [satPositionECEF] = get_satellite_ecef_positions(S, numTimeSteps)
+numSats = numel(S);
+
+satPositionECEF = zeros(3, numSats, numTimeSteps);
+
+for currentSat = 1:numSats
+    % Extraction of the satellite position history in the Earth-fixed frame.
+    satPosition = states(S(currentSat), "CoordinateFrame", "ecef");
+    %Storage of the current satellite position history
+    satPositionECEF(:,currentSat,:) = reshape(satPosition, [3,1,numTimeSteps]);
+end
 
 end

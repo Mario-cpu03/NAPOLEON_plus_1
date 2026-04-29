@@ -1,137 +1,50 @@
-%% Filter_constellation function
-% This function instantiate a new SatelliteScenario object that describes
-% the filtered constellation. The goal is to filter out the original
-% Starlink constellation by reducing the amount of satellites to only those 
-% that may be relevant to the association & handover problem. That is, the
-% satellites that any ground station cannot see during the simulation
-% window, given a certain elevation treshhold assumed fundamental to
-% guarantee a certain QoS.
+%% Filtered_satellite function
+% This function computes the time-evolution filtering of the full
+% constellation. The goal is determine, for each time step and
+% for each ground station, the set of satellites that are visible above a
+% prescribed elevation threshold, which is in compliance with the 
+% FCC 21-48 directives.
+% The main idea is to make the expensive visibility computation via a numerical 
+% ECEF-based engine, avoiding repeated calls to aer().
+%
+% The output is a time-indexed data structure containing:
+%       (i)   the simulation time vector,
+%       (ii)  the visible satellites for each user at each time step,
+%       (iii) the corresponding elevation angles,
+%       (iv)  the corresponding slant distances.
+%
+% IMPORTANT:
+% The function assumes that the input satelliteScenario object already
+% contains both Satellite objects and GroundStation objects.
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
-%       1. minimumElev: treshhold elevation angle between ground stations and
-%       satellites
-% 
-%       2. simulationScenario: satelliteScenario object of the toolbox
-%       from which GroundStation objects and Satellite objects can be
-%       accessed. This object will be thus deleted for Memory Occupancy
-%       optimization
+%       1. simulationScenario : satelliteScenario object of the toolbox
+%       containing the full constellation and the ground stations
+%
+%       2. minimumElev : minimum elevation threshold [deg] used to decide
+%       whether a satellite is visible or not at a given time step
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
-%       1. filteredSimScen: satelliteScenario object of the toolbox updated
-%       with the filtered Satellite objects
+%       1. visibilityData : Data Structure containing the dynamic
+%       visibility information:
+%                   (i)   timeVec : row vector of simulation times
+%                   (ii)  visibleSatIdx : cell array of size [T,U], where
+%                         each cell contains the indices of the satellites
+%                         visible to user u at time step t
+%                   (iii) elevationDeg : cell array of size [T,U], where
+%                         each cell contains the elevations of the visible
+%                         satellites
+%                   (iv)  distanceKm : cell array of size [T,U], where each
+%                         cell contains the slant distances of the visible
+%                         satellites
+%                   (v)   visibilityMask : logical array of size [U,S,T]
+%                   (vi)  elevationMatrix : array of size [U,S,T]
+%                   (vii) distanceMatrix : array of size [U,S,T]
+%                   (viii) numUsers : number of ground stations
+%                   (ix)  numSats : number of satellites
+%                   (x)   numTimeSteps : number of time samples
 
-function [filteredSimScen]=Filter_constellation(simulationScenario, minimumElev)
+function [visibilityData] = Filter_constellation(simulationScenario, minimumElev)
 
-%%Object recollection. 
-% Satellites and ground stations directly from the scenario object
-S= simulationScenario.Satellites;
-Gs= simulationScenario.GroundStations;
-
-%%Time axis reconstruction
-% The static filtering is performed over the whole simulation window, with
-% the same temporal resolution of the original scenario
-timeVec = simulationScenario.StartTime : seconds(simulationScenario.SampleTime) : simulationScenario.StopTime;
-
-
-%%Logical vector for the retained satellites
-% filtSat(currentSat)=true means that the satellite is visible to at least
-% one ground station, at least once, above the prescribed threshold
-filtSat = false(1, numel(S));
-
-%%Main loop for the static filtering
-% For each satellite, we scan all the ground stations. As soon as one
-% ground station sees that satellite above threshold at least once in the
-% simulation window, the satellite is marked as relevant and we stop
-% checking the remaining ground stations for that satellite
-
-for currentSat = 1:numel(S)
-    for currentGs = 1:numel(Gs)
-        for currentTime = 1:numel(timeVec)
-            [~, elevationDeg, ~] = aer(Gs(currentGs), S(currentSat), timeVec(currentTime));
-            if elevationDeg >= minimumElev
-                filtSat(currentSat) = true;
-                break;
-            end
-        end
-    end
-end
-
-%% Vector of retained satellite indices
-
-filtSatIdx = find(filtSat);
-
-%% Creation of the filtered scenario
-% The filtered scenario preserves the same simulation window and sample
-% time of the original one
-
-filteredSimScen = satelliteScenario( ...
-    simulationScenario.StartTime, ...
-    simulationScenario.StopTime, ...
-    simulationScenario.SampleTime);
-
-% Copy of the ground stations into the filtered scenario
-for currentGs = 1:numel(Gs)
-    groundStation(filteredSimScen, ...
-        Gs(currentGs).Latitude, ...
-        Gs(currentGs).Longitude, ...
-        Name=string(Gs(currentGs).Name));
-end
-
-%%Reconstruction of the retained satellites
-% The retained satellites are reconstructed through the same vectorized
-% strategy adopted in Satellite_constellation, in order to reduce the
-% overhead due to repeated access to the satelliteScenario object.
-
-beta = configConst.phasingParam*(360)/(configConst.planes*configConst.satPlanes);
-
-numfiltSats = numel(filtSatIdx);
-
-% Preallocation of the orbital parameters arrays
-semiMajorAxis_array = zeros(numfiltSats,1);
-eccentricity_array = zeros(numfiltSats,1);
-inclination_array = zeros(numfiltSats,1);
-raan_array = zeros(numfiltSats,1);
-argumentPeriapsis_array = zeros(numfiltSats,1);
-trueAnomaly_array = zeros(numfiltSats,1);
-satelliteName_array = strings(numfiltSats,1);
-
-for filtSatLocalIdx = 1:numfiltSats
-
-    currentSatGlobalIdx = keptSatIdx(filtSatLocalIdx);
-
-    % Mapping from global satellite index to:
-    %   (i) orbital plane index
-    %   (ii) satellite index inside that plane
-    currentPlane = ceil(currentSatGlobalIdx/configConst.satPlanes);
-    currentSatInPlane = currentSatGlobalIdx - (currentPlane-1)*configConst.satPlanes;
-
-    % Orbital parameters computation
-    raan = (currentPlane-1)*360/configConst.planes;
-
-    nu = (currentSatInPlane - 1)*360/configConst.satPlanes;
-    nu = mod(nu + (currentPlane-1)*beta,360);
-
-    % Orbital parameters storage
-    semiMajorAxis_array(filtSatLocalIdx) = (6371 + configConst.altitude)*1e3;
-    eccentricity_array(filtSatLocalIdx) = 0;
-    inclination_array(filtSatLocalIdx) = configConst.inclination;
-    raan_array(filtSatLocalIdx) = raan;
-    argumentPeriapsis_array(filtSatLocalIdx) = 0;
-    trueAnomaly_array(filtSatLocalIdx) = nu;
-
-    % Satellite name storage
-    satelliteName_array(filtSatLocalIdx) = sprintf("SAT_%d_%d", currentPlane, currentSatInPlane);
-
-end
-
-% Vectorized creation of the retained satellites
-satellite(filteredSimScen, ...
-    semiMajorAxis_array, ...
-    eccentricity_array, ...
-    inclination_array, ...
-    raan_array, ...
-    argumentPeriapsis_array, ...
-    trueAnomaly_array, ...
-    Name=satelliteName_array);
 
 end
