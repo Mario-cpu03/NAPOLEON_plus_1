@@ -73,4 +73,22 @@ Display_globe(filteredSimScen);
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
 USER_SAT_evolution = channel_model(configChannel, filteredSimScen, groundEnv);
 
+
+
+
+% Build an empty template struct
+%user_sat_cannels = struct( ...
+   % 'pathGain',  NaN(numUsers, numSats), ...
+    %'state',     NaN(numUsers, numSats), ...
+    %'range',     NaN(numUsers, numSats), ...
+    %'elevation', NaN(numUsers, numSats)  ...
+    %...
+%);
+
+%The USER_SAT_evolution  will be an array of struct of the type user_sat_channels. In
+%this way we save, for every instant of time, all the parameters that will
+%be usefull to implement the algorithms.
+
+
+
 end
