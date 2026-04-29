@@ -54,11 +54,8 @@ configAoI = struct( ...
             'deltaLat', 2, ...
             'deltaLon', 2);
 
-%%Init minimum elevation threshold for static satellite filtering according
-% to FCC 21-48 documentation. Most propably, this theta_min parameter will
-% be the same for the time-dependant filtering, that is the dynamic
-% filtering of the considered satellite for the association problem and
-% channel instantiation of the channel_model function.
+%%Init minimum elevation threshold for satellite filtering according
+% to FCC 21-48 documentation.
 minimumElev = 25;
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
@@ -68,14 +65,14 @@ simulationScenario=Satellite_constellation(configConst, simulationScenario);%"en
 [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
-visibilityData = Filter_constellation(simulationScenario, minimumElev)
+visibilityData = Filter_constellation(simulationScenario, minimumElev);
 
 fprintf('Simulation: %.3f s/n', toc);
 
 % CALL DISPLAY FUNCTION
-Display_globe(filteredSimScen); 
+Display_globe(simulationScenario); 
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
-%USER_SAT_evolution = channel_model(configChannel, filteredSimScen, groundEnv);
+USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
 
 end

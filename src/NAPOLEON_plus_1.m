@@ -28,7 +28,7 @@ sampleTime = 60; % seconds, maybe less in future
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 30; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
@@ -41,6 +41,5 @@ numUsers = 30; % Example number of users, TODO GUI. Momentarily hard-coded
 %                                   (i) ... TODEFINE
 
 % Init channel module output structure
-USER_SAT_evolution = struct(); %cell vector
 
-[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
+[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime);
