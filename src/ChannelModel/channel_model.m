@@ -10,18 +10,57 @@
 %       to configurate the channel:
 %                   (i) the carrier frequency
 %                   (ii) the mobile speed
-%                   (iii) the sample rate
 %
-%       2. groundEnv: column vector of size numUsers containing each
+%       2. visibilityData: Data structure containing the dynamic
+%       visibility information, of which we will only exploit:
+%                   (i) timeVec : row vector of simulation times
+%                   (ii) visibleSatIdx : cell array of size [T,U], where
+%                         each cell contains the indices of the satellites
+%                         visible to user u at time step t
+%                   (iii) elevationDeg : cell array of size [T,U], where
+%                         each cell contains the elevations of the visible
+%                         satellites
+%                   (iv) distanceKm : cell array of size [T,U], where each
+%                         cell contains the slant distances of the visible
+%                         satellites
+%                   (v) numUsers : number of ground stations
+%                   (vi) numSats : number of satellites
+%                   (vii) numTimeSteps : number of time samples
+%
+%       3. groundEnv: column vector of size numUsers containing each
 %       ground station's environment.
-%
-%       3. filteredSimScen : satelliteScenario object of the toolbox updated
-%       with the filtered Satellite objects
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
-%       1. USER_SAT_evolution: 
+%           1. USER_SAT_evolution: Data structure containing usersatassoc critical 
+%           quantities, "metadata" linked to simulation consistency, and
+%           "advanced quantities". Those 
+%                       (i) timeVec: metadata-like quantity, to obtain the
+%                       time indexing
+%                       (ii) validLinkMask: critical quantity to derive the
+%                       axctual "active" links
+%                       (iii)SNRtensor: critical quantity to evaluate the 
+%                       quality of the link                            
+%                       (iv) ratetensor: critical quantity to evaluate the 
+%                       the throughput of each link
+%                       (v) pathGaintensor: critical diagnostic quantity                        
+%                       (vi) distanceMatrix: not cruial but core quantity                   
+%                       (vii) elevationMatrix: not cruial but core quantity                        
+%                       (viii) numUsers: metadata-like quantity, to run through the users                 
+%                       (ix) numSats : metadata-like quantity, to run through the satellites       
+%                       (x) numTimeSteps: metadata-like quantity, to run
+%                       through time indeces
 
+%% %% %% AN IMPORTANT NOTE %% %% %% 
+%%USER_SAT_evolution.validLinkMask, USER_SAT_evolution.SNR_matrix, 
+%%USER_SAT_evolution.rateMatrix, and USER_SAT_evolution.pathGainMatrix 
+%%can either be tensor or cell array. However, treating them as cell
+%%arrays, even if more computationally effective, could require a rescale
+%%of the weight matrix in the Association process, which yields a very
+%%let's say uneffective way of dealing with it. On the contrary, tensors
+%%with fixed dimensions will simply have numbers like 0 or -inf for
+%%unavailable links, by means of actual availability or snr or rate or
+%%gain, and meaningful values elsewhere. 
 
-function [USER_SAT_evolution]=channel_model(configChannel, filteredSimScen, groundEnv)
+function [USER_SAT_evolution]=channel_model(configChannel, groundEnv, visibilityData)
     
 end

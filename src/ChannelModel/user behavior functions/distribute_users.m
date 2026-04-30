@@ -11,11 +11,11 @@
 
 function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numUsers,UserGrid)
 
-    users.lat     = zeros(numUsers, 1);
-    users.lon     = zeros(numUsers, 1);
-    users.env     = strings(numUsers, 1);
+    users.lat= zeros(numUsers, 1);
+    users.lon = zeros(numUsers, 1);
+    users.env = strings(numUsers, 1);
     users.cellIdx = zeros(numUsers, 2);
-    groundEnv     = strings(numUsers,1);
+    groundEnv  = strings(numUsers,1);
 
 
     %this is the main loop, that generates str.N_usr users

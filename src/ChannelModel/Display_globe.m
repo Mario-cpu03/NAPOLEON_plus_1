@@ -1,6 +1,6 @@
 %% Display_globe function
 % This function displays the 3D view of the globe, highligthing the users
-% and the satellites after filtering.
+% and the satellites.
 % In particular, the function:
 %       (i) opens the 3D globe viewer,
 %       (ii) displays the orbital traces of the satellites,
@@ -9,19 +9,19 @@
 %
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
-%       1. filteredSimScen: filtered satelliteScenario object of the toolbox
+%       1. simulationScenario: filtered satelliteScenario object of the toolbox
 
-function []=Display_globe(filteredSimScen)
+function []=Display_globe(simulationScenario)
 
 % satellites and ground stations directly from the scenario
 % object so that their graphical properties can be modified before playing
 % the simulation
-S= filteredSimScen.Satellites;
-Gs= filteredSimScen.GroundStations;
+S= simulationScenario.Satellites;
+Gs= simulationScenario.GroundStations;
 
 % The viewer is the object responsible for the visualization of the
 % satelliteScenario on the 3D globe
-viewer = satelliteScenarioViewer(filteredSimScen);
+viewer = satelliteScenarioViewer(simulationScenario);
 
 % Display the actual satellites (and check if there are any, hence if the 
 % structure has been correctly instantiated)
@@ -44,11 +44,6 @@ if ~isempty(Gs)
 end
 
 % Show orbit traces
-orb = orbit(filteredSimScen.Satellites);
+orb = orbit(simulationScenario.Satellites);
 show(orb);
-
-% Once all graphical settings have been configured, the scenario is played
-% over the considered simulation time window
-play(filteredSimScen);
-
 end
