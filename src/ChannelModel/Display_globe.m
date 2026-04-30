@@ -46,9 +46,4 @@ end
 % Show orbit traces
 orb = orbit(simulationScenario.Satellites);
 show(orb);
-
-% Once all graphical settings have been configured, the scenario is played
-% over the considered simulation time window
-play(simulationScenario);
-
 end

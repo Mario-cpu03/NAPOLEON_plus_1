@@ -57,25 +57,19 @@ configAoI = struct( ...
 % to FCC 21-48 documentation.
 minimumElev = 25;
 
-
-%%Init channel parameters. 
-% We assume
-
-configChannel = struct();
-
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
 
 % CALL USER FUNCTION to generate the non uniform users' distribution
-[simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario);
-
-% CALL DISPLAY FUNCTION
-Display_globe(simulationScenario); 
+[simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simulationScenario); 
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
 visibilityData = Filter_constellation(simulationScenario, minimumElev);
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
+
+% CALL DISPLAY FUNCTION
+Display_globe(simulationScenario);
 
 end
