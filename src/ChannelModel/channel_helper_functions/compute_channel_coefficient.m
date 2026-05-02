@@ -40,7 +40,7 @@
 %L is defined as the inverse of the FSPT, it is the channel gain.
 
 
-function [channelGainTensor, channelStateTensor] = compute_channel_coefficient(configChannel, visibilityData,groundEnv)
+function [channelGainTensor,channelStateTensor] = compute_channel_coefficient(configChannel, visibilityData,groundEnv)
 
 %constants
 c=3e8;
@@ -51,10 +51,8 @@ lamda=c/configChannel.carrierFrequency;
 
 %preallocation for efficiency
 channelGainTensor=zeros(numUsers, numSats, numTimeSteps);
-
-%since the function p&81(...) returns the staes as integers, i build the
-%tensor with NaN.
-channelStateTensor=NaN(numUsers, numSats, numTimeSteps);     
+channelStateTensor = NaN(numUsers, numSats, numTimeSteps);
+    
 
 %%computation of the FSPL
 dist_m = visibilityData.distanceMatrix .* 1000;    %becaouse the distace in the matrix are given in kilometers
@@ -72,26 +70,31 @@ for u=1:numUsers
 
         elevAngles=squeeze(visibilityData.elevationMatrix(u,s,linkMask));  %the sequence of elevation angles between user u and satellite s
        
-        lmsChannel = p681LMSChannel( ...                    %P681 LMS channel object
-                'CarrierFrequency', configChannel.carrierFrequency, ...
-                'Environment', currentEnv, ...
-                'MobileSpeed', configChannel.mobileSpeed, ...
-                'SampleRate', configChannel.sampleRate);
+        numVisible = length(elevAngles);
+        meanElev = mean(elevAngles);
+        
+        lmsChannel = p681LMSChannel( ...
+            'CarrierFrequency', configChannel.carrierFrequency, ...
+            'Environment',      currentEnv, ...
+            'MobileSpeed',      configChannel.mobileSpeed, ...
+            'SampleRate',       configChannel.sampleRate, ...
+            'ElevationAngle',   meanElev);
 
-        txSignal = ones(length(elevAngles), 1);    %exitation signal for the channel
-        [~, fading_dB, stateSequence] = lmsChannel(txSignal, elevAngles);  
-
-
-        fading_linear = 10.^(fading_dB / 10);
-        L_valid = squeeze(L_linear(u, s, linkMask));
-
-       combined_gain = fading_linear .* L_valid;
+            txSignal = ones(numVisible, 1);
+            [~, pathgains_complex, ~, stateSequence] = lmsChannel(txSignal);
             
-       % Reshape from [V x 1] to [1 x 1 x V] to match the tensor slice
-       channelGainTensor(u, s, linkMask)  = reshape(combined_gain, 1, 1, []);       
-       channelStateTensor(u, s, linkMask) = reshape(stateSequence, 1, 1, []);
+            fading_linear_all = abs(pathgains_complex).^2;
+            release(lmsChannel); 
+            
+            L_valid = squeeze(L_linear(u, s, linkMask));
+            combined_gain = fading_linear_all .* L_valid;
+            
+            % Reshape
+            channelGainTensor(u, s, linkMask)  = reshape(combined_gain, 1, 1, []);
+            channelStateTensor(u, s, linkMask) = reshape(stateSequence, 1, 1, []);
 
-        release(lmsChannel);   
+
+                 
     end
 
 end
