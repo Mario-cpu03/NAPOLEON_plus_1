@@ -27,6 +27,8 @@ function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTim
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
+addpath('ChannelModel/channel_helper_functions'); %helper functions for channel modeling
+
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
@@ -53,6 +55,12 @@ configAoI = struct( ...
             'deltaLat', 2, ...
             'deltaLon', 2);
 
+
+
+%HERE WE MUST DEFINE THE configChannel STRUCTURE
+
+
+
 %%Init minimum elevation threshold for satellite filtering according
 % to FCC 21-48 documentation.
 minimumElev = 25;
@@ -71,5 +79,23 @@ USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
 
 % CALL DISPLAY FUNCTION
 Display_globe(simulationScenario);
+
+
+
+
+% Build an empty template struct
+%user_sat_cannels = struct( ...
+   % 'pathGain',  NaN(numUsers, numSats), ...
+    %'state',     NaN(numUsers, numSats), ...
+    %'range',     NaN(numUsers, numSats), ...
+    %'elevation', NaN(numUsers, numSats)  ...
+    %...
+%);
+
+%The USER_SAT_evolution  will be an array of struct of the type user_sat_channels. In
+%this way we save, for every instant of time, all the parameters that will
+%be usefull to implement the algorithms.
+
+
 
 end
