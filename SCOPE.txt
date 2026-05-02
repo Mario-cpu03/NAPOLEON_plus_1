@@ -1,5 +1,0 @@
-NOTE: This is the TESTING MAIN branch.
-
-This branch is used to share code that is ready to be tested by the team before moving it to the main branch.
-In general, only stable and testable code should be added here. Incomplete code should stay on personal branches.
-However, incomplete code can be added here when sharing it is needed to help the team complete, integrate, or test a common part of the project.
