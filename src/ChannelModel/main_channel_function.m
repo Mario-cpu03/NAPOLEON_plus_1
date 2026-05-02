@@ -53,6 +53,23 @@ configAoI = struct( ...
             'deltaLat', 2, ...
             'deltaLon', 2);
 
+%%% PARAMETERS FOR CONFIGURATION CHANNEL STRUCTURE
+k_B = 1.380649e-23; % Boltzmann constant [J/K]
+T_sys = 290;        % System noise temperature [K]
+B = 5e6;            %channel bandwidth
+
+% --- Configuration Structure ---
+configChannel = struct( ...
+    'P_sat_lin', 5, ...                      % Transmit power in Watts (5 W)
+    'G_sat_lin', 10^(50 / 10), ...           % Satellite antenna gain (12 dBi -> Linear)
+    'G_u_lin', 10^(0 / 10), ...              % User antenna gain (0 dBi -> Linear)
+    'N_0', k_B * T_sys*B, ...                % Noise Power Spectral Density [W/Hz]
+    'channel_bandwidth',B,...                %channel bandwidth
+    'carrierFrequency', 2e9, ...             % S-band Carrier Frequency (2 GHz)
+    'mobileSpeed', 15, ...                   % User vehicular speed [m/s]
+    'sampleRate', 1000 ...                   % Channel fading sample rate [Hz]
+);
+
 %%Init minimum elevation threshold for satellite filtering according
 % to FCC 21-48 documentation.
 minimumElev = 25;
