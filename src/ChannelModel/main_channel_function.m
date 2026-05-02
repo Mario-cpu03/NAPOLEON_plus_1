@@ -66,7 +66,7 @@ configChannel = struct( ...
     'N_0', k_B * T_sys*B, ...                % Noise Power Spectral Density [W/Hz]
     'channel_bandwidth',B,...                %channel bandwidth
     'carrierFrequency', 2e9, ...             % S-band Carrier Frequency (2 GHz)
-    'mobileSpeed', 0, ...                   % User vehicular speed [m/s]
+    'mobileSpeed', 15, ...                   % User vehicular speed [m/s]
     'sampleRate', 1000 ...                   % Channel fading sample rate [Hz]
 );
 
