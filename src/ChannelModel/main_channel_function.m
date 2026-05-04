@@ -68,11 +68,11 @@ configChannel = struct( ...
     'channel_bandwidth',B,...                %channel bandwidth
     'carrierFrequency', 2e9, ...             % S-band Carrier Frequency (2 GHz)
     'mobileSpeed', 0, ...                   % User vehicular speed [m/s]
-    'sampleRate', 0.1 ...                   % Channel fading sample rate [Hz]  SampleRate is set to 0.1 Hz (= 1/10, where 10s per time slot).
+    'sampleRate', 0.1);                   % Channel fading sample rate [Hz]  SampleRate is set to 0.1 Hz (= 1/10, where 10s per time slot).
                                             % This ensures that each input sample fed to p681LMSChannel corresponds
                                             % to exactly one time slot of the simulation, so the LMS fading evolves
                                             % with the correct spatial correlation as defined by ITU-R P.681-10.
-);
+
 
 
 
