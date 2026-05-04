@@ -55,12 +55,11 @@ configAoI = struct( ...
             'deltaLon', 2);
 
 
-%%% PARAMETERS FOR CONFIGURATION CHANNEL STRUCTURE
+% Parameters for channel configuration
 k_B = 1.380649e-23; % Boltzmann constant [J/K]
 T_sys = 290;        % System noise temperature [K]
 B = 5e6;            %channel bandwidth
 
-% --- Configuration Structure ---
 configChannel = struct( ...
     'P_sat_lin', 5, ...                      % Transmit power in Watts (5 W)
     'G_sat_lin', 10^(50 / 10), ...           % Satellite antenna gain (12 dBi -> Linear)
