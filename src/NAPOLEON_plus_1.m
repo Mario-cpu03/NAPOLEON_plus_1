@@ -2,10 +2,9 @@
 % A simulator for the User - Satellite Association and Handover 
 % algorithms Evaluation. 
 % TEAM 1:   
-%           Ambrosone Mario Pellegrino - 360616
-%           La Spina Santi - 
-%           Gohite Aditya - 
-%           Natalizi Giovanni - 
+%           Ambrosone Mario Pellegrino
+%           La Spina Santi
+%           Gohite Aditya
 %
 % Main Script responsible for the execution and call of all the other
 % modules main functions. 
@@ -43,7 +42,7 @@ sampleTime = 20; % seconds
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
@@ -55,7 +54,4 @@ numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
 % object of relevance, as it contains:
 %                                   (i) ... TODEFINE
 
-% Init channel module output structure
-%USER_SAT_evolution = struct(); %cell vector
-
-[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
+[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime);

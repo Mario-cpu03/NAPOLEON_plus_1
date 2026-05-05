@@ -23,10 +23,11 @@
 %       evolution of the channel's parameters of each user-satellite link.
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
-
+tic
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
+addpath('ChannelModel/channel_helper_functions'); %helper functions for channel modeling
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
@@ -57,6 +58,30 @@ configAoI = struct( ...
 % to FCC 21-48 documentation.
 minimumElev = 25;
 
+%%Init channel parameters
+% Those parameters are selected in compliance with the ITU-R P.681-10, but
+% not in full consistency with the Starlink shells, whose operation bands
+% are the Ku and Ka band.
+
+% Parameters for channel configuration
+k_B = 1.380649e-23; % Boltzmann constant [J/K]
+T_sys = 290;        % System noise temperature [K]
+B = 5e6;            %channel bandwidth
+
+configChannel = struct( ...
+    'P_sat_lin', 5, ...                      % Transmit power in Watts (5 W)
+    'G_sat_lin', 10^(50 / 10), ...           % Satellite antenna gain (12 dBi -> Linear)
+    'G_u_lin', 10^(0 / 10), ...              % User antenna gain (0 dBi -> Linear)
+    'N_0', k_B * T_sys*B, ...                % Noise Power [W] 
+    'channel_bandwidth',B,...                %channel bandwidth
+    'carrierFrequency', 2e9, ...             % S-band Carrier Frequency (2 GHz)
+    'mobileSpeed', 0, ...                   % User vehicular speed [m/s]
+    'sampleRate', 1/20);                   % Channel fading sample rate [Hz]  SampleRate is set to 0.05 Hz (= 1/20, for 20s per time slot).
+                                            % This ensures that each input sample fed to p681LMSChannel corresponds
+                                            % to exactly one time slot of the simulation, so the LMS fading evolves
+                                            % with the correct spatial correlation as defined by ITU-R P.681-10.
+
+
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
 
@@ -65,11 +90,18 @@ simulationScenario=Satellite_constellation(configConst, simulationScenario);%"en
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
 visibilityData = Filter_constellation(simulationScenario, minimumElev);
-
+fprintf('Sim time: %.3f s', toc);
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
+tic
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
+fprintf('Channel Sim time: %.3f s', toc);
+
+%% TESTING PLTOS
+configPlot = struct();
+configPlot.selectedTimeIdx = USER_SAT_evolution.numTimeSteps;
+
+Plot_preassignment_diagnostics(simulationScenario, USER_SAT_evolution, configPlot);
 
 % CALL DISPLAY FUNCTION
 Display_globe(simulationScenario);
-
 end

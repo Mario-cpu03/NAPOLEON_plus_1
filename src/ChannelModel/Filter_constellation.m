@@ -116,9 +116,9 @@ for currentTimeIdx = 1:timeIndex
         % Visible satellite indices for the current user and time step
         currentVisibleSatIdx = find(currentVisibilityMask);
 
-        visibilityMask(currentUser,:,currentTimeIdx) = currentVisibilityMask;
-        elevationMatrix(currentUser,:,currentTimeIdx) = elevationCurrent;
-        distanceMatrix(currentUser,:,currentTimeIdx) = slantCurrentKm;
+        %visibilityMask(currentUser,:,currentTimeIdx) = currentVisibilityMask;
+        %elevationMatrix(currentUser,:,currentTimeIdx) = elevationCurrent;
+        %distanceMatrix(currentUser,:,currentTimeIdx) = slantCurrentKm;
 
         %Cell
         visibleSatIdx{currentTimeIdx,currentUser} = currentVisibleSatIdx;
@@ -137,9 +137,9 @@ visibilityData.elevationDeg = elevationDeg;
 visibilityData.distanceKm = distanceKm;
 
 %%FUTURE-PROOF OUTPUT
-visibilityData.visibilityMask = visibilityMask;
-visibilityData.elevationMatrix = elevationMatrix;
-visibilityData.distanceMatrix = distanceMatrix;
+%visibilityData.visibilityMask = visibilityMask;
+%visibilityData.elevationMatrix = elevationMatrix;
+%visibilityData.distanceMatrix = distanceMatrix;
 
 visibilityData.numUsers = numGs;
 visibilityData.numSats = numSats;

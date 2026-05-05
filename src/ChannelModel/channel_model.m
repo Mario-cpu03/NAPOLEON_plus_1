@@ -61,6 +61,44 @@
 %%unavailable links, by means of actual availability or snr or rate or
 %%gain, and meaningful values elsewhere. 
 
-function [USER_SAT_evolution]=channel_model(configChannel, groundEnv, visibilityData)
-    
+function [USER_SAT_evolution]=channel_model(configChannel, visibilityData,groundEnv)
+
+    numUsers     = visibilityData.numUsers;
+    numSats      = visibilityData.numSats;
+    numTimeSteps = visibilityData.numTimeSteps;
+    timeVec      = visibilityData.timeVec;
+
+    c = 3e8;
+
+    [pathGainTensor, stateTensor, distanceTensor, elevationTensor, validLinkMask] = ...
+        compute_channel_coefficient( ...
+            configChannel, visibilityData, groundEnv);
+
+    latencyTensor = compute_latency(distanceTensor, c);
+
+    SNRtensor  = compute_snr(pathGainTensor, configChannel);
+    rateTensor = compute_bitrate(SNRtensor, configChannel);
+
+    distanceTensor(~validLinkMask) = NaN;
+    elevationTensor(~validLinkMask) = NaN;
+    latencyTensor(~validLinkMask) = NaN;
+    pathGainTensor(~validLinkMask) = 0;
+    stateTensor(~validLinkMask) = NaN;
+    SNRtensor(~validLinkMask) = NaN;
+    rateTensor(~validLinkMask) = NaN;
+
+    USER_SAT_evolution.timeVec = timeVec;
+    USER_SAT_evolution.numUsers = numUsers;
+    USER_SAT_evolution.numSats = numSats;
+    USER_SAT_evolution.numTimeSteps = numTimeSteps;
+
+    USER_SAT_evolution.validLinkMask = validLinkMask;
+    USER_SAT_evolution.distanceTensor = distanceTensor;
+    USER_SAT_evolution.elevationTensor = elevationTensor;
+    USER_SAT_evolution.latencyTensor = latencyTensor;
+    USER_SAT_evolution.pathGainTensor = pathGainTensor;
+    USER_SAT_evolution.stateTensor = stateTensor;
+    USER_SAT_evolution.SNRtensor = SNRtensor;
+    USER_SAT_evolution.rateTensor = rateTensor;
+
 end

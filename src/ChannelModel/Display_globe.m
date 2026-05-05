@@ -21,7 +21,7 @@ Gs= simulationScenario.GroundStations;
 
 % The viewer is the object responsible for the visualization of the
 % satelliteScenario on the 3D globe
-viewer = satelliteScenarioViewer(simulationScenario);
+viewer = satelliteScenarioViewer(simulationScenario, "Basemap","satellite");
 
 % Display the actual satellites (and check if there are any, hence if the 
 % structure has been correctly instantiated)
