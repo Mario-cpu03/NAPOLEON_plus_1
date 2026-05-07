@@ -22,7 +22,7 @@
 %       3.  USER_SAT_evolution: Array of Data Structures containing the time
 %       evolution of the channel's parameters of each user-satellite link.
 
-function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
+function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode)
 tic
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
@@ -62,25 +62,21 @@ minimumElev = 25;
 % Those parameters are selected in compliance with the ITU-R P.681-10, but
 % not in full consistency with the Starlink shells, whose operation bands
 % are the Ku and Ka band.
-
-% Parameters for channel configuration
-k_B = 1.380649e-23; % Boltzmann constant [J/K]
-T_sys = 290;        % System noise temperature [K]
-B = 5e6;            %channel bandwidth
+k_B = 1.380649e-23;
+T_sys = 290; %std teemparature for noise computation
+B = 5e6; % bandwidth 5MHz 
 
 configChannel = struct( ...
-    'P_sat_lin', 5, ...                      % Transmit power in Watts (5 W)
-    'G_sat_lin', 10^(50 / 10), ...           % Satellite antenna gain (12 dBi -> Linear)
-    'G_u_lin', 10^(0 / 10), ...              % User antenna gain (0 dBi -> Linear)
-    'N_0', k_B * T_sys*B, ...                % Noise Power [W] 
-    'channel_bandwidth',B,...                %channel bandwidth
-    'carrierFrequency', 2e9, ...             % S-band Carrier Frequency (2 GHz)
-    'mobileSpeed', 0, ...                   % User vehicular speed [m/s]
-    'sampleRate', 1/20);                   % Channel fading sample rate [Hz]  SampleRate is set to 0.05 Hz (= 1/20, for 20s per time slot).
-                                            % This ensures that each input sample fed to p681LMSChannel corresponds
-                                            % to exactly one time slot of the simulation, so the LMS fading evolves
-                                            % with the correct spatial correlation as defined by ITU-R P.681-10.
-
+    'P_sat_lin', 1, ... % power of the signal, one watt as a starting base, may be varied if needed 
+    'G_sat_lin', 10^(50/10), ... %gain of the satellite antenna
+    'G_u_lin', 10^(0/10), ... %0dBi of gain for the user assuming isotropic antenas
+    'N_0', k_B*T_sys*B, ... %noise power
+    'channel_bandwidth', B, ... %bandwidth of the system on each channel
+    'carrierFrequency', 2e9, ... %itu-r aligned carrier
+    'mobileSpeed', 5000/3600, ... % assuming a 5km/h speed to obtain doppler shift
+    'sampleRate', 200, ... %200Hz to have at least 111Hz needed for the doppler shift modeling
+    'traceLengthSamples', 4000, ... %number of samples obtained as the sample rate of the channel multiplied by the sample time of the simulator
+    'CSImode', mode); %mode of the channel. See channel_model for more information
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
@@ -90,18 +86,16 @@ simulationScenario=Satellite_constellation(configConst, simulationScenario);%"en
 
 % REDUCING SATELLITAR OBJECTS TO USER-ONLY RELEVANT SATELLITES
 visibilityData = Filter_constellation(simulationScenario, minimumElev);
-fprintf('Sim time: %.3f s', toc);
+
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
-tic
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
-fprintf('Channel Sim time: %.3f s', toc);
+fprintf('Channel Sim time: %.3f s\n', toc);
 
 %% TESTING PLTOS
-configPlot = struct();
-configPlot.selectedTimeIdx = USER_SAT_evolution.numTimeSteps;
+%configPlot = struct();configPlot.selectedTimeIdx = USER_SAT_evolution.numTimeSteps;
 
-Plot_preassignment_diagnostics(simulationScenario, USER_SAT_evolution, configPlot);
+%Plot_preassignment_diagnostics(simulationScenario, USER_SAT_evolution, configPlot);
 
 % CALL DISPLAY FUNCTION
-Display_globe(simulationScenario);
+%Display_globe(simulationScenario);
 end
