@@ -3,8 +3,8 @@ function Display_system_snapshot(simulationScenario, snapshotTime, visibilityDat
 sats = simulationScenario.Satellites;
 gss  = simulationScenario.GroundStations;
 
-viewer = satelliteScenarioViewer(simulationScenario);
-hideAll(viewer);
+
+%hideAll(viewer);
 
 % Computing sample time index from snapshot
 timeIdx = round(snapshotTime*60 / sampleTime) + 1;
@@ -57,6 +57,7 @@ for u = 1:numel(gss)
 
     end
 end
+
 
 % Show them all at once
 if ~isempty(accessObj)
