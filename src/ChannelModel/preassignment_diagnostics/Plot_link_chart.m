@@ -3,7 +3,7 @@
 % reference figure shared in the discussion.
 % A user is marked as available at time t if at least one valid link exists.
 
-function Plot_link_availability_chart(USER_SAT_evolution)
+function Plot_link_chart(USER_SAT_evolution)
 
 timeVec       = USER_SAT_evolution.timeVec;
 validLinkMask = USER_SAT_evolution.validLinkMask;

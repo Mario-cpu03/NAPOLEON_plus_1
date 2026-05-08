@@ -9,7 +9,7 @@
 % Main Script responsible for the execution and call of all the other
 % modules main functions. 
 
-clc; close all; clear
+close all; clc; clear
 
 %%%%%%% ------- MODULES VISIBILITY SETTINGS ------ %%%%%%%
 % We make the path of each module, hence each directory, visible from the
@@ -42,11 +42,16 @@ sampleTime = 20; % seconds
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 500; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
 % asked to set a new value
+
+% From the GUI the end-user is able to select wheter the simulation mode is
+% ideal or forecast, in order to be able to test both an ideal and a 
+% plausible version of the same policies-dependant hunagiran implementation.
+mode = "forecast"; %mode = "ideal";
 
 %%%%%% ------ CHANNEL MODEL MODULE EXECUTION ----- %%%%%%
 % We call the main_channel_function to obtain the temporal evolution of the
@@ -54,4 +59,4 @@ numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
 % object of relevance, as it contains:
 %                                   (i) ... TODEFINE
 
-[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime);
+[USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode);

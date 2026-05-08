@@ -28,6 +28,7 @@ tic
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
 addpath('ChannelModel/channel_helper_functions'); %helper functions for channel modeling
+addpath('ChannelModel/preassignment_diagnostics/'); %Presentation plots
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
@@ -91,11 +92,5 @@ visibilityData = Filter_constellation(simulationScenario, minimumElev);
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
 fprintf('Channel Sim time: %.3f s\n', toc);
 
-%% TESTING PLTOS
-%configPlot = struct();configPlot.selectedTimeIdx = USER_SAT_evolution.numTimeSteps;
-
-%Plot_preassignment_diagnostics(simulationScenario, USER_SAT_evolution, configPlot);
-
-% CALL DISPLAY FUNCTION
-%Display_globe(simulationScenario);
+Display_globe(simulationScenario);
 end
