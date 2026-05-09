@@ -45,8 +45,18 @@ function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numU
         thisLatMax = UserGrid.edgesLat(iLat + 1);
         thisLonMin = UserGrid.edgesLon(iLon);
         thisLonMax = UserGrid.edgesLon(iLon + 1);
-        users.lat(u) = thisLatMin + (thisLatMax - thisLatMin) * rand;
-        users.lon(u) = thisLonMin + (thisLonMax - thisLonMin) * rand;
+        latCenter = 0.5 * (thisLatMin + thisLatMax);
+        lonCenter = 0.5 * (thisLonMin + thisLonMax);
+
+        sigmaLat = (thisLatMax - thisLatMin) / 6;
+        sigmaLon = (thisLonMax - thisLonMin) / 6;
+
+        latSample = latCenter + sigmaLat * randn;
+        lonSample = lonCenter + sigmaLon * randn;
+
+        % Keep the user inside the selected cell
+        users.lat(u) = min(max(latSample, thisLatMin), thisLatMax);
+        users.lon(u) = min(max(lonSample, thisLonMin), thisLonMax);
 
 
         %The user have the same environment of the cell where it is

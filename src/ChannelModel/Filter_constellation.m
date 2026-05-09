@@ -37,12 +37,9 @@
 %                   (iv)distanceKm : cell array of size [T,U], where each
 %                         cell contains the slant distances of the visible
 %                         satellites
-%                   (v) visibilityMask : logical array of size [U,S,T]
-%                   (vi) elevationMatrix : array of size [U,S,T]
-%                   (vii) distanceMatrix : array of size [U,S,T]
-%                   (viii) numUsers : number of ground stations
-%                   (ix)numSats : number of satellites
-%                   (x) numTimeSteps : number of time samples
+%                   (v) numUsers : number of ground stations
+%                   (vi)numSats : number of satellites
+%                   (vii) numTimeSteps : number of time samples
 
 
 %% %% %% AN IMPORTANT NOTE %% %% %%
@@ -116,10 +113,6 @@ for currentTimeIdx = 1:timeIndex
         % Visible satellite indices for the current user and time step
         currentVisibleSatIdx = find(currentVisibilityMask);
 
-        visibilityMask(currentUser,:,currentTimeIdx) = currentVisibilityMask;
-        elevationMatrix(currentUser,:,currentTimeIdx) = elevationCurrent;
-        distanceMatrix(currentUser,:,currentTimeIdx) = slantCurrentKm;
-
         %Cell
         visibleSatIdx{currentTimeIdx,currentUser} = currentVisibleSatIdx;
         elevationDeg{currentTimeIdx,currentUser} = elevationCurrent(currentVisibleSatIdx);
@@ -135,11 +128,6 @@ visibilityData.timeVec = timeVec;
 visibilityData.visibleSatIdx = visibleSatIdx;
 visibilityData.elevationDeg = elevationDeg;
 visibilityData.distanceKm = distanceKm;
-
-%%FUTURE-PROOF OUTPUT
-visibilityData.visibilityMask = visibilityMask;
-visibilityData.elevationMatrix = elevationMatrix;
-visibilityData.distanceMatrix = distanceMatrix;
 
 visibilityData.numUsers = numGs;
 visibilityData.numSats = numSats;
