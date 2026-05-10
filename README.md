@@ -58,7 +58,7 @@ NAPOLEON+ provides a modular simulation environment for studying association str
 
 ## Simulator Architecture
 
-The simulator is organized into five high-level modules:
+The simulator is organized into four high-level modules:
 
 ### 1. Channel Model Module
 Responsible for defining the physical simulation context and deriving the communication conditions of visible links::
