@@ -23,12 +23,15 @@
 %       evolution of the channel's parameters of each user-satellite link.
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode)
+
 tic
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
 addpath('ChannelModel/channel_helper_functions'); %helper functions for channel modeling
 addpath('ChannelModel/preassignment_diagnostics/'); %Presentation plots
+
+rng(13); %%Seed for reproducibility
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
@@ -92,5 +95,10 @@ visibilityData = Filter_constellation(simulationScenario, minimumElev);
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
 fprintf('Channel Sim time: %.3f s\n', toc);
 
-Display_globe(simulationScenario);
+snapshotTime=20;
+
+%splot_user_spatial_distribution(simulationScenario, configAoI)
+%Plot_link_chart(USER_SAT_evolution, snapshotTime, visibilityData, sampleTime)
+%Display_system_snapshot(simulationScenario, snapshotTime, visibilityData, sampleTime)
+%Display_globe(simulationScenario);
 end

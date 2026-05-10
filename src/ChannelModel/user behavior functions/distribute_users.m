@@ -39,8 +39,7 @@ function [simulationScenario,groundEnv]=distribute_users(simulationScenario,numU
 
         %We have defined the cell where the user will be located. This
         %block assign tonthe user the position inside the cell. That
-        %position will be chosen with a normal distribution. Eg.
-        %position=minimum_edge+cell_amplitude*rand.
+        %position will be chosen with a normal distribution.
         thisLatMin = UserGrid.edgesLat(iLat);
         thisLatMax = UserGrid.edgesLat(iLat + 1);
         thisLonMin = UserGrid.edgesLon(iLon);

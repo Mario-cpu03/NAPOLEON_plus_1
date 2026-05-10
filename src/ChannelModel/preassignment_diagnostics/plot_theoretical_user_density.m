@@ -45,12 +45,16 @@ function plot_theoretical_user_density(UserGrid, configAoI)
     % Normalize numerically for visualization consistency
     density = density / sum(density(:));
 
-    figure;
+    figure('Color', 'w');
     surf(LonFine, LatFine, density, 'EdgeColor', 'none');
-    xlabel('Longitude [deg]');
-    ylabel('Latitude [deg]');
-    zlabel('Probability density');
-    title('Theoretical spatial distribution of the user-generation process');
+        xlabel('Longitude [deg]', 'Color', 'k', 'FontWeight', 'bold');
+    ylabel('Latitude [deg]', 'Color', 'k', 'FontWeight', 'bold');
+    zlabel('Probability Density Function', 'Color', 'k', 'FontWeight', 'bold');
+
+    title('Theoretical spatial distribution of the user-generation process', ...
+        'Color', 'k', ...
+        'FontSize', 18, ...
+        'FontWeight', 'bold');
     colorbar;
     grid on;
     view(45,30);

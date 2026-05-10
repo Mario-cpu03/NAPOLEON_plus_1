@@ -25,10 +25,11 @@ visibleSatIdx = unique([visibilityData.visibleSatIdx{timeIdx, :}]);
 
 % Show ground stations
 for currentGs = 1:numel(gss)
-    show(gss(currentGs), viewer);
+    %show(gss(currentGs), viewer);
     gss(currentGs).ShowLabel = true;
     gss(currentGs).LabelFontSize = 10;
 end
+show(gss, viewer);
 
 % Show only visible satellites
 for k = 1:numel(visibleSatIdx)
@@ -40,6 +41,8 @@ for k = 1:numel(visibleSatIdx)
 
     show(orbit(sats(satIdx)), viewer);
 end
+
+%show(sats,viewer); show(orbit(sats),viewer);
 
 % Create all access objects first, without showing them
 accessObj = [];
