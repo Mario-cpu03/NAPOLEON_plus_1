@@ -60,3 +60,10 @@ mode = "forecast"; %mode = "ideal";
 %                                   (i) ... TODEFINE
 
 [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode);
+
+
+%%%%%% ------ USER-SATELLITE ASSOCIATION MODULE EXECUTION ----- %%%%%%
+% We call the user_sat_assoc_function to associate users with satellites
+% based on the USER_SAT_evolution data structure obtained from the channel model.
+
+[USER_SAT_association] = user_sat_assoc_function(USER_SAT_evolution, numUsers, mode);
