@@ -1,8 +1,9 @@
-function traceBank = generate_trace_bank(configChannel)
+function traceBank = generate_trace_bank(configChannel,numTimeSteps)
 
 env = ["Urban", "Suburban", "Village", "RuralWooded"];
 
 elevationClasses = [30 45 60 70];
+
 
 numEnv=numel(env);
 numElev = numel(elevationClasses);
@@ -28,7 +29,11 @@ for iEnv = 1:numEnv
             'SampleRate',       configChannel.sampleRate, ...
             'ElevationAngle',   elevationClasses(iElev), ...
             'ChannelFiltering', false, ...
-            'NumSamples',       configChannel.traceLengthSamples);
+            'NumSamples',       configChannel.traceLengthSamples*numTimeSteps); 
+        % For a 1h36min simulation: Tsim = 5760 s.
+        % With fs = 100 Hz, the fading trace should contain 5760*100 = 576000 samples.
+        % Since the scenario has 289 time instants and each 20 s slot uses 2000 samples,
+        % one full fading window per instant requires 289*2000 = 578000 samples.
 
         % Channel coefficients of a fixed environment-elevation channel
         [pathGain, ~, ~] = lmsChannel();

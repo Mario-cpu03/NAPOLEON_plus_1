@@ -42,7 +42,7 @@ sampleTime = 20; % seconds
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 500; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 10; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
@@ -53,10 +53,24 @@ numUsers = 500; % Example number of users, TODO GUI. Momentarily hard-coded
 % plausible version of the same policies-dependant hunagiran implementation.
 mode = "forecast"; %mode = "ideal";
 
+% From the GUI the end-user is able to select the nature of the association
+% alroithm from a pool of pre-defined policies. Another possible choice is
+% to enable the user to manually select the amount of "reward" and "penalization"
+% of each relevant quantity. The latter of the two options requires an
+% higher end-user knowledge but offers more flexibility; on the other hand,
+% the first option may be easier to develop but more expensive to compute, plus
+% it requires hard-coded weights and fixed kinds of algorithms. 
+
+
 %%%%%% ------ CHANNEL MODEL MODULE EXECUTION ----- %%%%%%
 % We call the main_channel_function to obtain the temporal evolution of the
-% satellite to user links. The USER_SAT_evolution datastructure is the
-% object of relevance, as it contains:
-%                                   (i) ... TODEFINE
+% satellite - user links. The USER_SAT_evolution datastructure is the
+% object of relevance. It is organized as a structure of:
+%           (i) tensors, one per needed quantity,
+%           (SNR, rate, distance, average path gain, class of the elevation,
+%           and valid links);
+%           (ii) control informations to enable the analysis of said
+%           quantities by the UserSatAssoc module (time vector, number of users,
+%           number of satellites and number of time samples)
 
 [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode);

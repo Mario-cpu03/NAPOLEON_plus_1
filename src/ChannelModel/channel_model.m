@@ -4,12 +4,16 @@
 %
 % Internally, the model is a simplified trace-based statistical emulator.
 % A bank of LMS fading traces is generated a priori, with one trace for each
-% pair: user propagation environment x quantized elevation class
-% In this first approximation, each trace is interpreted as a fixed
-% class-conditioned fading ensemble. No sliding window, no deterministic
-% per-link offset and no circular time indexing are used. Consequently, all
-% visible links belonging to the same environment/elevation class are
-% evaluated over the same representative fading ensemble.
+% propagation environment x quantized elevation class. In ideal CSI mode, 
+% each visible user-satellite link extracts a sliding
+% time window from the selected class-conditioned trace. The window position
+% contains:
+%       (i) a global time term, ensuring coherent evolution with scenario time;
+%       (ii) a fixed user-satellite offset, avoiding identical fading samples
+%            for links sharing the same environment/elevation class.
+% In forecast CSI mode, only the average fading power of the selected class
+% trace is used, representing an elevation/environment-dependent mean channel
+% profile rather than instantaneous CSI.
 %
 % For each visible user-satellite-time link, the function:
 %       (i)   reads distance and elevation from visibilityData;
@@ -127,7 +131,20 @@ rateTensor=NaN(numUsers, numSats, numTimeSteps);
 % and do not vary across different simulation intervals (samples of time window)
 % The time - dependant behavior of the system is modeled only through the
 % changing elevation angle of every user
-traceBank = generate_trace_bank(configChannel);
+traceBank = generate_trace_bank(configChannel,numTimeSteps);
+
+%% Sliding-window configuration
+% Number of fast LMS samples used inside one slow scenario time step.
+% in our case sampleRate = 100 Hz and sampleTime = 20 s -> 2000 samples.
+NumSamples = configChannel.traceLengthSamples;
+
+% reference trace length as all traces in the bank have same length.
+traceLength = numel(traceBank.h2{1,1});
+
+% link-specific offsets to avoid all links using the same part of the same trace.
+% One offset per user-satellite pair. This preserves coherent time sliding while
+% decorrelating links that belong to the same environment/elevation class.
+offset = randi([0, traceLength-1], numUsers, numSats);%seed fixed in main_channel_function
 
 % Mapping user to environment via an univocal index
 userEnvIdx = zeros(numUsers,1); 
@@ -139,7 +156,7 @@ end
 for t = 1:numTimeSteps %time
 
     for u = 1:numUsers %fixing the user
-
+        
         sats_t = visibleSatIdx{t,u}; %retreiving its set of visible satellytes
 
         if isempty(sats_t)
@@ -150,7 +167,7 @@ for t = 1:numTimeSteps %time
         elev=elevationDeg{t,u}; dist=distanceKm{t,u}; envIdx=userEnvIdx(u);
 
         for k = 1:numel(sats_t) 
-
+            
             %retrieve the k-th satellite at time t, elevation index and distance
             %in meters
             s = sats_t(k);thetaDeg = elev(k);elevIdx=elevation_to_idx(thetaDeg);distM= dist(k)*1e3;
@@ -158,7 +175,6 @@ for t = 1:numTimeSteps %time
             if isnan(elevIdx)
                 continue; %most probably will never be, but better safe than sorry
             end
-
             % Eventually, retrieve the trace bank 
             h2Trace = traceBank.h2{envIdx,elevIdx};
             h2Mean = traceBank.h2Mean(envIdx,elevIdx);
@@ -175,12 +191,20 @@ for t = 1:numTimeSteps %time
             switch string(configChannel.CSImode)
 
                 case "ideal"
-                    % Ideal mode: Use the whole class-conditioned fading ensemble.
-                    snrBlock=rhoNoFading .* h2Trace; snrValue=mean(snrBlock);
-
-                    pathGainValue = fsplGainLinear * mean(h2Trace);
-                    
-                    rateValue=configChannel.channel_bandwidth*mean(log2(1 + snrBlock));
+                    % ideal mode: use a time-coherent sliding window of the selected
+                    % environment/elevation fading trace.
+                    % The global term (t-1)*slotSamples makes the window slide coherently
+                    % with simulation time. The linkOffset(u,s) term decorrelates different
+                    % user-satellite links that happen to use the same class trace.
+                
+                    base = (t-1)*NumSamples + offset(u,s);   % zero-based starting index
+                    idx  = mod(base:base+NumSamples-1, traceLength) + 1;
+                    h2Window = h2Trace(idx);
+                
+                    snrBlock = rhoNoFading.*h2Window; snrValue = mean(snrBlock);
+                
+                    pathGainValue = fsplGainLinear*mean(h2Window);
+                    rateValue = configChannel.channel_bandwidth*mean(log2(1 + snrBlock));
 
                 case "forecast"
 
