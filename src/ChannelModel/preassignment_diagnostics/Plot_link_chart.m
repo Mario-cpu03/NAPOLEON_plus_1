@@ -75,10 +75,10 @@ for u = 1:numUsers
 end
 
 %Best SNR and Rate
-%figure;
-%cdfplot(snrDb_valid);
-%xlabel('SNR [dB]');
-%ylabel('Empirical CDF');
-%title(sprintf('CDF of SNR at t = %.1f min', snapshotTime));
-%grid on;
+figure;
+cdfplot(snrDb_valid); hold on;
+xlabel('SNR [dB]');
+ylabel('Empirical CDF');
+title(sprintf('CDF of SNR at t = %.1f min', snapshotTime));
+grid on;
 end

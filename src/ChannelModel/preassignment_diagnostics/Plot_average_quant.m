@@ -15,7 +15,7 @@ for u = 1:visibilityData.numUsers
     numVisiblePerUser(u) = numel(visibilityData.visibleSatIdx{timeIdx, u});
 end
 
-figure;
+figure("Color",'w');
 bar(1:visibilityData.numUsers, numVisiblePerUser);
 
 xlabel('User / Ground Station index');
@@ -38,7 +38,7 @@ for u = 1:visibilityData.numUsers
 end
 
 % Plot number of users per satellite
-figure;
+figure("Color",'w');
 bar(1:visibilityData.numSats, numUsersPerSat);
 
 xlabel('Satellite index');
@@ -54,7 +54,7 @@ for u = 1:visibilityData.numUsers
     allElevations = [allElevations, elevU];
 end
 
-figure;
+figure("Color",'w');
 histogram(allElevations);
 xlabel('Elevation angle [deg]');
 ylabel('Number of visible links');
@@ -70,7 +70,7 @@ grid on;
 %    allDistances = [allDistances, distU];
 %end
 
-%figure;
+%figure("Color",'w');
 %histogram(allDistances);
 %xlabel('Slant range [km]');
 %ylabel('Number of visible links');
@@ -96,7 +96,7 @@ latencyMs = allDistances / 300;
 [sortedDistances, sortIdx] = sort(allDistances);
 sortedLatencyMs = latencyMs(sortIdx);
 
-figure;
+figure("Color",'w');
 
 yyaxis left
 scatter(allDistances, allElevations, 'filled');

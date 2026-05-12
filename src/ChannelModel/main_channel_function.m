@@ -19,7 +19,7 @@
 %       1.  filteredSatellite_Set : Data Structure containing the satellite objects
 %       relevant for the AoI simulated
 % 
-%       3.  USER_SAT_evolution: Array of Data Structures containing the time
+%       3.  USER_SAT_evolution: Data Structure of tensors containing the time
 %       evolution of the channel's parameters of each user-satellite link.
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode)
@@ -97,8 +97,8 @@ fprintf('Channel Sim time: %.3f s\n', toc);
 
 snapshotTime=20;
 
-%splot_user_spatial_distribution(simulationScenario, configAoI)
-%Plot_link_chart(USER_SAT_evolution, snapshotTime, visibilityData, sampleTime)
+%plot_user_spatial_distribution(simulationScenario, configAoI)
+Plot_link_chart(USER_SAT_evolution, snapshotTime, visibilityData, sampleTime)
 %Display_system_snapshot(simulationScenario, snapshotTime, visibilityData, sampleTime)
 %Display_globe(simulationScenario);
 end

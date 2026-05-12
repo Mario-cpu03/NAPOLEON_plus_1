@@ -40,7 +40,9 @@ for k = 1:numel(visibleSatIdx)
     sats(satIdx).LabelFontSize = 10;
 
     show(orbit(sats(satIdx)), viewer);
+    groundTrack(sats(satIdx));
 end
+
 
 %show(sats,viewer); show(orbit(sats),viewer);
 

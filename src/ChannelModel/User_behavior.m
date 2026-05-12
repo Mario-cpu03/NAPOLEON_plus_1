@@ -34,7 +34,7 @@ function [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simu
     UserGrid=create_grid(configAoI);
     
     %%PLOTTING FOR THE SAKE OF SCIENCE
-    plot_theoretical_user_density(UserGrid, configAoI);
+    %plot_theoretical_user_density(UserGrid, configAoI);
     %thi function, give the grid, distribute the users
     [simulationScenario,groundEnv]=distribute_users(simulationScenario,numUsers,UserGrid);
 
