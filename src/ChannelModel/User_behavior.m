@@ -33,7 +33,7 @@ function [simulationScenario, groundEnv]=User_behavior(configAoI, numUsers, simu
     %this function creates the weighted grid
     UserGrid=create_grid(configAoI);
 
-    %thi function, give the grid, distribute the users
+    %this function, give the grid, distribute the users
     [simulationScenario,groundEnv]=distribute_users(simulationScenario,numUsers,UserGrid);
 
 end

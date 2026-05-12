@@ -21,7 +21,7 @@ Gs= simulationScenario.GroundStations;
 
 % The viewer is the object responsible for the visualization of the
 % satelliteScenario on the 3D globe
-viewer = satelliteScenarioViewer(simulationScenario);
+viewer = satelliteScenarioViewer(simulationScenario);%, "Basemap","satellite");
 
 % Display the actual satellites (and check if there are any, hence if the 
 % structure has been correctly instantiated)
@@ -34,16 +34,22 @@ if ~isempty(S)
     end
 end
 
+
+%% JUST FOR THE PRESENTATION
 % Display the ground stations (and check if there are any, hence if the 
 % structure has been correctly instantiated)
 if ~isempty(Gs)
     for currentGs = 1:numel(Gs)
-        Gs(currentGs).ShowLabel = true;
-        Gs(currentGs).LabelFontSize = 6;
+        Gs(currentGs).ShowLabel = false;
+%        Gs(currentGs).LabelFontSize = 6;
     end
 end
+
 
 % Show orbit traces
 orb = orbit(simulationScenario.Satellites);
 show(orb);
+
+%% JUST FOR THE PRESENTATION
+play(simulationScenario,PlaybackSpeedMultiplier=100);
 end

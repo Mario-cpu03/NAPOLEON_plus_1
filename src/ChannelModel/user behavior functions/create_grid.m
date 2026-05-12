@@ -1,11 +1,6 @@
 function UserGrid=create_grid(configAoI)  
 
 
-    %the sequent part need a fix. The part that build the Grid and the one
-    %that define the users' distribution should be in 2 different files. In
-    %this way the code will be more flexible.
-    %The next rows of code will be moved into another file
-
     UserGrid.edgesLat=configAoI.latMin : configAoI.deltaLat : configAoI.latMax;
     UserGrid.edgesLon=configAoI.lonMin : configAoI.deltaLon : configAoI.lonMax;
 

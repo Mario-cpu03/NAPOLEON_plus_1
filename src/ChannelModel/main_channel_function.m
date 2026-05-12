@@ -19,15 +19,18 @@
 %       1.  filteredSatellite_Set : Data Structure containing the satellite objects
 %       relevant for the AoI simulated
 % 
-%       3.  USER_SAT_evolution: Array of Data Structures containing the time
+%       3.  USER_SAT_evolution: Data Structure of tensors containing the time
 %       evolution of the channel's parameters of each user-satellite link.
 
-function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime)
+function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode)
 
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
 addpath('ChannelModel/channel_helper_functions'); %helper functions for channel modeling
+addpath('ChannelModel/preassignment_diagnostics/'); %Presentation plots
+
+rng(13); %%Seed for reproducibility
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
@@ -54,31 +57,34 @@ configAoI = struct( ...
             'deltaLat', 2, ...
             'deltaLon', 2);
 
-
-% Parameters for channel configuration
-k_B = 1.380649e-23; % Boltzmann constant [J/K]
-T_sys = 290;        % System noise temperature [K]
-B = 5e6;            %channel bandwidth
-
-configChannel = struct( ...
-    'P_sat_lin', 5, ...                      % Transmit power in Watts (5 W)
-    'G_sat_lin', 10^(50 / 10), ...           % Satellite antenna gain (12 dBi -> Linear)
-    'G_u_lin', 10^(0 / 10), ...              % User antenna gain (0 dBi -> Linear)
-    'N_0', k_B * T_sys*B, ...                % Noise Power [W] 
-    'channel_bandwidth',B,...                %channel bandwidth
-    'carrierFrequency', 2e9, ...             % S-band Carrier Frequency (2 GHz)
-    'mobileSpeed', 0, ...                   % User vehicular speed [m/s]
-    'sampleRate', 0.1);                   % Channel fading sample rate [Hz]  SampleRate is set to 0.1 Hz (= 1/10, where 10s per time slot).
-                                            % This ensures that each input sample fed to p681LMSChannel corresponds
-                                            % to exactly one time slot of the simulation, so the LMS fading evolves
-                                            % with the correct spatial correlation as defined by ITU-R P.681-10.
-
-
-
-
 %%Init minimum elevation threshold for satellite filtering according
 % to FCC 21-48 documentation.
 minimumElev = 25;
+
+%%Init channel parameters
+% Those parameters are selected in compliance with the ITU-R P.681-10, but
+% not in full consistency with the Starlink shells, whose operation bands
+% are the Ku and Ka band.
+k_B = 1.380649e-23; %Boltzmann konstant
+T_sys = 290; %std teemparature for noise computation
+B = 5e6; % bandwidth 5MHz 
+
+configChannel = struct( ...
+    'P_sat_lin', 1, ... % power of the signal, one watt as a starting base, may be varied if needed 
+    'G_sat_lin', 10^(50/10), ... %gain of the satellite antenna
+    'G_u_lin', 10^(0/10), ... %0dBi of gain for the user assuming isotropic antenas
+    'N_0', k_B*T_sys*B, ... %noise power
+    'channel_bandwidth', B, ... %bandwidth of the system on each channel
+    'carrierFrequency', 2e9, ... %itu-r aligned carrier
+    'mobileSpeed', 5000/3600, ... % assuming a 5km/h speed to obtain doppler shift: v=1.389m/s --> f_Dmobile = v*f_c/c = 9.2593 Hz approx 10Hz
+    'sampleRate', 100, ... %see note below
+    'traceLengthSamples', 2000, ... %number of samples obtained as the channel sample rate times the sample time of the simulator: 200[1/s]*20[s] = 4000
+    'CSImode', mode); %mode of the channel. See channel_model for more information
+%%NOTE on the sample rate:
+% p681LMSChannel requires fD_mobile + |fD_sat| < f_sampling/10.
+% Here fD_sat = 0 by default, thus for fD_mobile = 9.26567 Hz,
+% we have that f_samling must be > 92.6567 Hz.
+
 
 % CALL SATELLITE FUNCTION - defines the Starlink shell 1 constallation
 simulationScenario=Satellite_constellation(configConst, simulationScenario);%"ends timer"
@@ -94,5 +100,4 @@ USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
 
 % CALL DISPLAY FUNCTION
 Display_globe(simulationScenario);
-
 end
