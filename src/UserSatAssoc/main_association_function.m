@@ -1,8 +1,20 @@
-%This is the main function for the association module. 
-%This function implements different types of algorithms.
-%These algorithm are:
-%   1) Munkres-algorithm based;
-%   2) Simpler methods based on optimizing choice
+%This function has to comupute the history of the salacted links between
+%user-sat pairs.
+%The selection of each link is performed by means of Munkres-based
+%algorithm variances, each representing a use-case of the IMT-2020 standard.
+%Since the Munkres algorithm is a cost/reward optimizer, the different
+%kinds of association methos are implemented changing, for each method, the
+%weights associated to each parameter (like SNR, rate, latency, handover
+%frequency).
+%   Namley:
+%           1)URLLC inspired association:
+%                                 With this algorithm, the aim is to
+%                                 minimize the latency and handovers between a user and
+%                                 satellites, without optyimizing SNR and
+%                                 rate. 
+%           2)Enhanced Mobile Broadband inspired association:
+%                                 Here the aim is to maximize the SNR, data rate, without taking into account latency, 
+%                                 but strongly penalizing costly handovers.
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
 %       1. USER_SAT_evolution : Data Structure containing metadata and
@@ -47,13 +59,14 @@
 %                   (iv)    distanceTensor : tensor [U x S x T] containing
 %                           slant distance [m] for every association. Propagation latency can be
 %                           computed later from this quantity as d/c
-% ..... OTHERS
+%                   (v) OTHERS TO BE DEFINED. THAT WILL BE DEFINED BASED ON
+%                       THE KPI FUNCTION THAT WILL BE IMPLEMENTED
 
 function [USER_SAT_association]=main_association_function(USER_SAT_evolution)
 
 %From here the function could be divided into two logical flow:
 
-%  1) Using Munkres-algorithm based reasoning: 
+%   Using Munkres-algorithm based reasoning: 
 %                               1)Build the weight matrices for every time
 %                               step;
 %                               2)Calling the function munkres_algorithm()
@@ -71,12 +84,6 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution)
 %           Once the weight matrix is built, the munkres_algorithm()
 %           function will be called to obtain the perfect association that
 %           ensure the minimum weight.
-
-
-%  2) Simpler methods:
-%               1)Take the datas that represent the parameter that we want to optimize from the USER_SAT_evolution structure;
-%               2)Find the association that ensure the optimal association based on the algorithm's logic
-%           Example: We want to maximize the rate: we associate every user to the satellite that ensure the maximum rate for that time instant.
 
 %%%   -----  THIS IS JUST AN IMPLEMENTING EXAMPLE, NOT THE FINAL CODE!!!  ---
 
