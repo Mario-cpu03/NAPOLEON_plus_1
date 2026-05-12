@@ -51,7 +51,7 @@ numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
 % From the GUI the end-user is able to select wheter the simulation mode is
 % ideal or forecast, in order to be able to test both an ideal and a 
 % plausible version of the same policies-dependant hunagiran implementation.
-mode = "forecast"; %mode = "ideal";
+mode = "ideal"; %mode = "ideal";
 
 % From the GUI the end-user is able to select the nature of the association
 % alroithm from a pool of pre-defined policies. Another possible choice is
@@ -78,8 +78,12 @@ mode = "forecast"; %mode = "ideal";
 
 
 %%%%%% ------ USER SATELLITE ASSOCIATION MODULE EXECUTION ----- %%%%%%
-% We call the main_channel_function to obtain the history of association
+% We call the main_association_function to obtain the history of association
 % outcomes, dictated by each algorithm, between user and
-% satellites. The USER_SAT_association datastracture is the object of
+% satellites.
+% 
+% The USER_SAT_association datastracture is the object of
 % relevance and it is organized as:
 %           (i) TO DEFINE ....
+
+%[USER_SAT_association]=main_association_function(USER_SAT_evolution);

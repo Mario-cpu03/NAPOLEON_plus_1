@@ -11,7 +11,7 @@ numElev = numel(elevationClasses);
 % Creation of the cell of traces, that is the set of environmentxelevation
 % channel coefficients. I.e., traceBank.h2{i,j} is the cell containing the 4000
 % channel coefficients of the i-th channel at the j-th elevation
-traceBank.h2=cell(numEnv, numElev);
+traceBank.h2=zeros(numEnv*numElev, );
 traceBank.h2Mean=zeros(numEnv, numElev);
 
 traceBank.elevationClasses = elevationClasses;
