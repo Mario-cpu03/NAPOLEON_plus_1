@@ -102,9 +102,9 @@ fprintf('Channel Sim time: %.3f s\n', toc);
 
 snapshotTime=20;userIdx=1;
 
-plot_user_spatial_distribution(simulationScenario, configAoI)
-Plot_link_chart(USER_SAT_evolution, snapshotTime, visibilityData, sampleTime)
-Plot_average_quant(snapshotTime, visibilityData, USER_SAT_evolution, sampleTime, userIdx)
+%plot_user_spatial_distribution(simulationScenario, configAoI)
+Plot_link_chart(USER_SAT_evolution, snapshotTime, visibilityData, sampleTime, groundEnv)
+%Plot_average_quant(snapshotTime, visibilityData, USER_SAT_evolution, sampleTime, userIdx)
 %Display_system_snapshot(simulationScenario, snapshotTime, visibilityData, sampleTime)
 %Display_globe(simulationScenario);
 end

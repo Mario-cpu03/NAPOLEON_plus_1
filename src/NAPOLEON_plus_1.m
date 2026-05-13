@@ -51,7 +51,7 @@ numUsers = 1000; % Example number of users, TODO GUI. Momentarily hard-coded
 % From the GUI the end-user is able to select wheter the simulation mode is
 % ideal or forecast, in order to be able to test both an ideal and a 
 % plausible version of the same policies-dependant hunagiran implementation.
-mode = "ideal"; %mode = "ideal";
+mode = "forecast"; %mode = "ideal";
 
 % From the GUI the end-user is able to select the nature of the association
 % alroithm from a pool of pre-defined policies. Another possible choice is
