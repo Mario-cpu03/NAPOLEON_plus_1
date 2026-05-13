@@ -30,6 +30,9 @@ addpath('ChannelModel/satellite_helper_functions'); %helper functions for satell
 
 %%Init starting satellite scenario object with time intervals of reference
 simulationScenario = satelliteScenario(startTime, stopTime, sampleTime);
+startTime = datetime(2026,05,26,00,28);
+stopTime = simulationScenario.StartTime + hours(1) + minutes(36);
+sampleTime = 60;
 
 % Constellation fixed parameters, to be found on paragraph 4 chapter 2 of
 % the FCC 21-48.
