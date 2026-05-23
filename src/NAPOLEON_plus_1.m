@@ -80,4 +80,7 @@ mode = "forecast"; %mode = "ideal";
 % We call the user_sat_assoc_function to associate users with satellites
 % based on the USER_SAT_evolution data structure obtained from the channel model.
 
-[USER_SAT_association] = user_sat_assoc_function(USER_SAT_evolution, numUsers, mode);
+
+association_algorithm="URLLC";   %association_algorithm="eMBB";
+
+%[USER_SAT_association] = main_association_function(USER_SAT_evolution, numUsers, association_algorithm);

@@ -1,18 +1,13 @@
-%This function has to comupute the history of the salacted links between
-%user-sat pairs.
-%The selection of each link is performed by means of Munkres-based
-%algorithm variances, each representing a use-case of the IMT-2020 standard.
-%Since the Munkres algorithm is a cost/reward optimizer, the different
-%kinds of association methos are implemented changing, for each method, the
-%weights associated to each parameter (like SNR, rate, latency, handover
-%frequency).
+%This function has to comupute the history of the selected links between user-sat pairs.
+%The selection of each link is performed by means of Munkres-based algorithm variances, each representing a use-case of the IMT-2020 standard.
+%Since the Munkres algorithm is a cost/reward optimizer, the different kinds of association methods are implemented changing, for each method, the
+%weights associated to each parameter (like SNR, rate, latency, handover frequency).
 %   Namley:
 %           1)URLLC inspired association:
-%                                 With this algorithm, the aim is to
-%                                 minimize the latency and handovers between a user and
-%                                 satellites, without optyimizing SNR and
-%                                 rate. 
-%           2)Enhanced Mobile Broadband inspired association:
+%                                 With this algorithm, the aim is to minimize the latency, optimizing handover frequency,
+%                                 without optyimizing SNR and rate. 
+%
+%           2)Enhanced Mobile Broadband inspired association (eMBB):
 %                                 Here the aim is to maximize the SNR, data rate, without taking into account latency, 
 %                                 but strongly penalizing costly handovers.
 
@@ -45,8 +40,7 @@
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
 %           Data structure containing the association between the users with a satellite along time istants. 
-%           Furthermore, the output data structure should contains all the
-%           datas required for the KPI module. 
+%           Furthermore, the output data structure should contains all the datas required for the KPI module. 
 %           For example: 
 %           1. USER_SAT_association : Data Structure containing metadata and
 %           tensor quantities required by the KPI module:
@@ -62,64 +56,58 @@
 %                   (v) OTHERS TO BE DEFINED. THAT WILL BE DEFINED BASED ON
 %                       THE KPI FUNCTION THAT WILL BE IMPLEMENTED
 
-function [USER_SAT_association]=main_association_function(USER_SAT_evolution)
 
-%From here the function could be divided into two logical flow:
+%%   THINGS TO FIX:
+%                   1) Input arguments for the compute_base_cost_tensor function (see comments inside the function)
+%                   1) configChannel Should not be defined here, but should
+%                   be given as input parameter of the main_association_function (then tocompute_base_cost_tensor function)
+%   
+%%
 
-%   Using Munkres-algorithm based reasoning: 
-%                               1)Build the weight matrices for every time
-%                               step;
-%                               2)Calling the function munkres_algorithm()
-%                               to obtain the best possible association
-%                               between user and satellites.
-%                               3) Store the data inside the
-%                               USER_SAT_association output structure
 
-%           What is important to say is that, with this workflow, it is
-%           possible to implement different types of algorithms. 
-%           In particular, since the weight matrix will be calculated from a
-%           function, tuning the parameters of that function we are able to
-%           optimize "something" and penalize "something else". (something could be the rate, latency, # of andowers,... whatevery we want) 
-%           Example of function:    weight[i,j] = alfa * parameter_to_optimize[i,j] +/- beta * parameter_to_penalize[i,j] 
-%           Once the weight matrix is built, the munkres_algorithm()
-%           function will be called to obtain the perfect association that
-%           ensure the minimum weight.
 
-%%%   -----  THIS IS JUST AN IMPLEMENTING EXAMPLE, NOT THE FINAL CODE!!!  ---
+function [USER_SAT_association]=main_association_function(USER_SAT_evolution, numUsers, association_algorithm)
 
-%switch case for the 2 different approach: 1-Munkres-based
-%                                          2-Simpler
+addpath('UserSatAssoc/Munkres helper functions'); %helper functions for the construction of the weights matrix
 
-%For the sake of simplicity, from now on only the Munkres-based approach is
-%taken into account
-% Initialize the weight matrix for each time step
-numTimeSteps = size(USER_SAT_evolution, 3);
-weightMatrix = zeros(numUsers, numSats, numTimeSteps);
 
-for t = 1:numTimeSteps
-    % Extract parameters for the current time step
-    parameterToOptimize = USER_SAT_evolution.something(:, :, t); % Example parameter
-    parameterToPenalize = USER_SAT_evolution.something_else(:, :, t); % Example penalty
+%Here we construct the weight matrix. Since it will be computational costly to buit it time step per time step, here we build a cost tensor without taking into account the handover penalty.  
+%The parameter that models the handover penalty will be give as output of the function. That will be consider when we call the Munkres time instant per time instant. 
+%In this way we optimize as much as possible the computational cost. 
+%As it is defined, the base_cost_tensor has values in range [0,2) (limit case that actually will never happend), not taking into account the handover penalization.
+%Actual values will be in range [0,1.#]
 
-    % Build the weight matrix based on the optimization and penalty
-    % parameters.
-    % alfa and beta will change following the logic we want to implement, they could also be submitted by the final
-    % user.
-    %Maybe we could define 3 or more different approach, the only things
-    %that we have to change for each one are the parameters alfa and beta.
-    weightMatrix(:, :, t) = alfa * parameterToOptimize - beta * parameterToPenalize;
-end
+%%              --- SHOULD NOT BE THERE, JUST FOR DEBUGGING---
 
-% Call the Munkres algorithm to find the optimal association
-USER_SAT_association.associationTensor = munkres_algorithm(weightMatrix);
+%We need this since the compute_base_cost_tensor functions normalizes the
+%values with theoretical quantities that depends on how we defined the
+%simulation scenario (see comments inside the function).
+k_B = 1.380649e-23; %Boltzmann konstant
+T_sys = 290; %std teemparature for noise computation
+B = 5e6; % bandwidth 5MHz 
+
+configChannel = struct( ...
+    'P_sat_lin', 1, ... % power of the signal, one watt as a starting base, may be varied if needed 
+    'G_sat_lin', 10^(50/10), ... %gain of the satellite antenna
+    'G_u_lin', 10^(0/10), ... %0dBi of gain for the user assuming isotropic antenas
+    'N_0', k_B*T_sys*B, ... %noise power
+    'channel_bandwidth', B, ... %bandwidth of the system on each channel
+    'carrierFrequency', 2e9, ... %itu-r aligned carrier
+    'mobileSpeed', 5000/3600, ... % assuming a 5km/h speed to obtain doppler shift: v=1.389m/s --> f_Dmobile = v*f_c/c = 9.2593 Hz approx 10Hz
+    'sampleRate', 100, ... %see note below
+    'traceLengthSamples', 2000, ... %number of samples obtained as the channel sample rate times the sample time of the simulator: 200[1/s]*20[s] = 4000
+    'CSImode', mode); %mode of the channel. See channel_model for more information
+
+%%
+[base_cost_tensor,handover_parameter]=compute_base_cost_tensor(USER_SAT_evolution,association_algorithm, configChannel);
 
 
 
 
-
-
-
-
+%   NEXT STEP IS TO IMPLEMENT A LOOP THAT, FOR EACH TIME STEP, ADDS THE
+%   HANDOVER PENALTY TO THE COST MATRIX. 
+%   THEN, FOR EACH TIME STEP, THE MUNKRES OPTIMIZER WILL BE CALLED TO FIND
+%   THE MINIMUM COST ASSOCIATIONS BETWEEN USERS AND SATELLIUTES.
 
 
 
