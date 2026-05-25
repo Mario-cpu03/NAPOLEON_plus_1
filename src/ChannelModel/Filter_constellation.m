@@ -41,23 +41,6 @@
 %                   (vi)numSats : number of satellites
 %                   (vii) numTimeSteps : number of time samples
 
-
-%% %% %% AN IMPORTANT NOTE %% %% %%
-%% AT THE MOMENT, THE FUNCTION HERE DESCRIBED DEFINES THE visibilityData DATA 
-
-%%STRUCTURE IN ORDER TO CONTAIN BOTH MATRIX BASED AND CELL-LIKE DATA. 
-%%NAMELY, THE visibilityMask, elevationMatrix AND distanceMatrix ARE DENSE MATRIX
-%%WHOSE USAGE IS MORE SUITABLE BYMEANS OF ASSOCIATION PROBELM SOLUTIONS. 
-%%ON THE OTHER HAND, THE visibleSatIdx, elevationDeg, AND distanceKm ARE 
-%%CELLs CONTAINING, FOR EACH TIME SAMPLE A SET OF VALUES REFERING TO THE {time, user}
-%%PAIR ORDERED WITH RESPECT TO THE SATELLITES AVAILABLE THROUGH THE INDICIZATION visibleSatIdx{time, user}
-
-%%FOR THIS VERY REASON, IT MAY BE MORE THAN PLAUSIBLE THAT ONLY THE CELL LIKE STRUCTURES
-%%WILL HAVE AN ACTUAL RELEVANCE AS THEY REPRESENT A per-link EVALUATION.
-
-%%HOEVER, THE MATRICES WILL BE KEPT FOR THE MOMENT, AS THEY MAY BECOME USEFUL IN FUTURE.
-
-
 function [visibilityData] = Filter_constellation(simulationScenario, minimumElev)
 
 %%Retrieval of the objects already stored in the scenario
@@ -71,14 +54,6 @@ timeVec = simulationScenario.StartTime : seconds(simulationScenario.SampleTime) 
 visibleSatIdx = cell(timeIndex, numGs);
 elevationDeg  = cell(timeIndex, numGs);
 distanceKm    = cell(timeIndex, numGs);
-
-% Dense matrices are useful? The matrix convention is:
-%       dimension 1 -> users
-%       dimension 2 -> satellites
-%       dimension 3 -> time samples
-visibilityMask  = false(numGs, numSats, timeIndex);
-elevationMatrix = NaN(numGs, numSats, timeIndex);
-distanceMatrix  = NaN(numGs, numSats, timeIndex);
 
 % Extraction of satellite ECEF positions
 % satPositionECEF has size: 3 x numSats x numTimeSteps
