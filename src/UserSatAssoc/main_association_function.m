@@ -1,18 +1,13 @@
-%This function has to comupute the history of the salacted links between
-%user-sat pairs.
-%The selection of each link is performed by means of Munkres-based
-%algorithm variances, each representing a use-case of the IMT-2020 standard.
-%Since the Munkres algorithm is a cost/reward optimizer, the different
-%kinds of association methos are implemented changing, for each method, the
-%weights associated to each parameter (like SNR, rate, latency, handover
-%frequency).
+%This function has to comupute the history of the selected links between user-sat pairs.
+%The selection of each link is performed by means of Munkres-based algorithm variances, each representing a use-case of the IMT-2020 standard.
+%Since the Munkres algorithm is a cost/reward optimizer, the different kinds of association methods are implemented changing, for each method, the
+%weights associated to each parameter (like SNR, rate, latency, handover frequency).
 %   Namley:
 %           1)URLLC inspired association:
-%                                 With this algorithm, the aim is to
-%                                 minimize the latency and handovers between a user and
-%                                 satellites, without optyimizing SNR and
-%                                 rate. 
-%           2)Enhanced Mobile Broadband inspired association:
+%                                 With this algorithm, the aim is to minimize the latency, optimizing handover frequency,
+%                                 without optyimizing SNR and rate. 
+%
+%           2)Enhanced Mobile Broadband inspired association (eMBB):
 %                                 Here the aim is to maximize the SNR, data rate, without taking into account latency, 
 %                                 but strongly penalizing costly handovers.
 
@@ -45,8 +40,7 @@
 
 %%%%%% ----- OUTPUT PARAMETERS ----- %%%%%%
 %           Data structure containing the association between the users with a satellite along time istants. 
-%           Furthermore, the output data structure should contains all the
-%           datas required for the KPI module. 
+%           Furthermore, the output data structure should contains all the datas required for the KPI module. 
 %           For example: 
 %           1. USER_SAT_association : Data Structure containing metadata and
 %           tensor quantities required by the KPI module:
@@ -62,65 +56,154 @@
 %                   (v) OTHERS TO BE DEFINED. THAT WILL BE DEFINED BASED ON
 %                       THE KPI FUNCTION THAT WILL BE IMPLEMENTED
 
-function [USER_SAT_association]=main_association_function(USER_SAT_evolution)
 
-%From here the function could be divided into two logical flow:
-
-%   Using Munkres-algorithm based reasoning: 
-%                               1)Build the weight matrices for every time
-%                               step;
-%                               2)Calling the function munkres_algorithm()
-%                               to obtain the best possible association
-%                               between user and satellites.
-%                               3) Store the data inside the
-%                               USER_SAT_association output structure
-
-%           What is important to say is that, with this workflow, it is
-%           possible to implement different types of algorithms. 
-%           In particular, since the weight matrix will be calculated from a
-%           function, tuning the parameters of that function we are able to
-%           optimize "something" and penalize "something else". (something could be the rate, latency, # of andowers,... whatevery we want) 
-%           Example of function:    weight[i,j] = alfa * parameter_to_optimize[i,j] +/- beta * parameter_to_penalize[i,j] 
-%           Once the weight matrix is built, the munkres_algorithm()
-%           function will be called to obtain the perfect association that
-%           ensure the minimum weight.
-
-%%%   -----  THIS IS JUST AN IMPLEMENTING EXAMPLE, NOT THE FINAL CODE!!!  ---
-
-%switch case for the 2 different approach: 1-Munkres-based
-%                                          2-Simpler
-
-%For the sake of simplicity, from now on only the Munkres-based approach is
-%taken into account
-% Initialize the weight matrix for each time step
-numTimeSteps = size(USER_SAT_evolution, 3);
-weightMatrix = zeros(numUsers, numSats, numTimeSteps);
-
-for t = 1:numTimeSteps
-    % Extract parameters for the current time step
-    parameterToOptimize = USER_SAT_evolution.something(:, :, t); % Example parameter
-    parameterToPenalize = USER_SAT_evolution.something_else(:, :, t); % Example penalty
-
-    % Build the weight matrix based on the optimization and penalty
-    % parameters.
-    % alfa and beta will change following the logic we want to implement, they could also be submitted by the final
-    % user.
-    %Maybe we could define 3 or more different approach, the only things
-    %that we have to change for each one are the parameters alfa and beta.
-    weightMatrix(:, :, t) = alfa * parameterToOptimize - beta * parameterToPenalize;
-end
-
-% Call the Munkres algorithm to find the optimal association
-USER_SAT_association.associationTensor = munkres_algorithm(weightMatrix);
+%%   THINGS TO FIX:
+%                   1) Input arguments for the compute_base_cost_tensor function (see comments inside the function)
+%                   1) configChannel Should not be defined here, but should
+%                   be given as input parameter of the main_association_function (then tocompute_base_cost_tensor function)
+%   
+%%
 
 
 
+function [USER_SAT_association]=main_association_function(USER_SAT_evolution, numUsers, association_algorithm)
+
+    addpath('UserSatAssoc/Munkres helper functions'); %helper functions for the construction of the weights matrix    
+    
+    %%              --- SHOULD NOT BE THERE, JUST FOR DEBUGGING---
+    
+    %We need this since the compute_base_cost_tensor functions normalizes the
+    %values with theoretical quantities that depends on how we defined the
+    %simulation scenario (see comments inside the function).
+    k_B = 1.380649e-23; %Boltzmann konstant
+    T_sys = 290; %std teemparature for noise computation
+    B = 5e6; % bandwidth 5MHz 
+    
+    configChannel = struct( ...
+        'P_sat_lin', 1, ... % power of the signal, one watt as a starting base, may be varied if needed 
+        'G_sat_lin', 10^(50/10), ... %gain of the satellite antenna
+        'G_u_lin', 10^(0/10), ... %0dBi of gain for the user assuming isotropic antenas
+        'N_0', k_B*T_sys*B, ... %noise power
+        'channel_bandwidth', B, ... %bandwidth of the system on each channel
+        'carrierFrequency', 2e9, ... %itu-r aligned carrier
+        'mobileSpeed', 5000/3600, ... % assuming a 5km/h speed to obtain doppler shift: v=1.389m/s --> f_Dmobile = v*f_c/c = 9.2593 Hz approx 10Hz
+        'sampleRate', 100, ... %see note below
+        'traceLengthSamples', 2000, ... %number of samples obtained as the channel sample rate times the sample time of the simulator: 200[1/s]*20[s] = 4000
+        'CSImode', mode); %mode of the channel. See channel_model for more information
+    
+    %%
 
 
+    %Here we construct the weight matrix. Since it will be computational costly to buit it time step per time step, here we build a cost tensor without taking into account the handover penalty.  
+    %The parameter that models the handover penalty will be give as output of the function. That will be consider when we call the Munkres time instant per time instant. 
+    %In this way we optimize as much as possible the computational cost. 
+    %As it is defined, the base_cost_tensor has values in range [0,2) (limit case that actually will never happend), not taking into account the handover penalization.
+    %Actual values will be in range [0,1.#]
+    
+    [base_cost_tensor,handover_weight]=compute_base_cost_tensor(USER_SAT_evolution,association_algorithm, configChannel);    
+        
+    [U, S, T] = size(base_cost_tensor);
+    
+    G=2;                         % max number of possible connections per satellite. HARD CODED HERE. SHOULD BE PASSED AS AN INPUT FOR THE FUNCTION
+        
+    USER_SAT_association.associationTensor = false(U, S, T);    %Initialization of the output structure
+    prev_association = false(U, S);                             %Inizialization of the matrix that we use to consider the handover penalization strategy
+    
+    for t = 1:T
+    
+        real_sat_idx = zeros(U, 1);                                 %inizialization of the vector that will contains the real indices of the associations  
+        current_association = false(U, S);
 
+        cost_matrix = base_cost_tensor(:,:,t);      %exract only the costs for that time step
+    
+        %To optimize, next step is to remove from the cost matrix all the
+        %columns that represent satellites that are unavaible for that time
+        %step (that have, for each row, only values = inf). 
+    
+        visible_sats_mask = any(cost_matrix ~=Inf, 1);                  % 1 if the satellite could be connected, 0 otherwise
+        visible_sats_indices = find(visible_sats_mask);                 %returns only the avaible satellites
+        reduced_cost_matrix = cost_matrix(:, visible_sats_mask);        %this matrix contains only the costs of the possible connections that could be instantiated
+    
+        %now we have to apply the handover penalty
+        if t>1   
+            reduced_prev_assoc_mask = prev_association(: , visible_sats_mask);    %this logical matrix is 1 if at t-1 there was an association. 
+                                                                                  %since visible_sats_mask "contains" only the columns of avaible satellites,  reduced_prev_assoc_mask
+                                                                                  %already takes into account the reduced number of columns
+            handover_penalty = handover_weight * (~reduced_prev_assoc_mask);      %if reduced_prev_assoc_mask(x,y)=0 then ~reduced_prev_assoc_mask(x,y)=1, so we add the handover penalty.
+            reduced_cost_matrix = reduced_cost_matrix + handover_penalty;             
+        end
+    
+        %now we have to take into account the fact that a satellite could be
+        %connected to G users. We "clone" the columns.
+        %The cost matrix will be U x (G*S_visible).
+        %After the Munkres, we have to remap the "virtual indices" to the real ones
+        expanded_cost_matrix = repelem(reduced_cost_matrix, 1, G);          %replace every columns G times
+        num_virtual_sats = size(expanded_cost_matrix, 2);
+    
+    
+        %Munkres works with square matrix, so we have to insert "dummy" rows in
+        %the expanded_cost_matrix. 
+        num_dummies = num_virtual_sats - U;    
+    
+        if num_dummies > 0
 
+            %if there are more visible slots than users, we add num_dummies rows
+            %to the expanded_cost_matrix. Every row has cost 0
+            dummy_matrix = zeros(num_dummies, num_virtual_sats);
+            square_cost_matrix = [expanded_cost_matrix; dummy_matrix];
 
+        elseif num_dummies < 0
 
+            %if there are more users that visible slots.
+            %almost impossible case, only to be sure that the munkress will always work. 
+            dummy_cols = Inf(U, abs(num_dummies));
+            square_cost_matrix = [expanded_cost_matrix, dummy_cols];
 
+        else
+            square_cost_matrix = expanded_cost_matrix;   
+        end
+    
+    
+        %now we havo to perform the munkres
+        assignment = munkres(square_cost_matrix);     %munkres function will return a row vector with dimensions [1 x U]. 
+                                                      %the value for every index represent the index of the assigned satellite for that user
 
+        %Munkres will return also the assignment for the dummy users. We filter out that associations.
+        virt_sat_idx = assignment(1:U);         %the first U values are the ones for the actual U users
+        virt_sat_idx = virt_sat_idx(:);         %to obtain a column vector
+
+        valid_users = (virt_sat_idx > 0) & (virt_sat_idx <= num_virtual_sats);      %we make this check to be sure that the index is >0 (satellite associated) and <= num_virtual_sats (to avoid index errors)
+        
+        %Munkres could returns (in limit cases) associations with infinite cost.
+        %We make this check to avoid infinite costs in the
+        %square_cost_matrix. This would be useless, but it is better to
+        %check. 
+        if any(valid_users)
+            % Troviamo le coordinate (Riga, Colonna) solo per gli utenti attualmente 'true'
+            idx_cost = sub2ind(size(square_cost_matrix), find(valid_users), virt_sat_idx(valid_users));
+            
+            % Troviamo quali di queste connessioni sono fisicamente impossibili (Inf)
+            is_inf = square_cost_matrix(idx_cost) == Inf;
+            
+            % Selezioniamo gli indici degli utenti validi e li forziamo a 'false' se il costo è Inf
+            valid_users_indices = find(valid_users);
+            valid_users(valid_users_indices(is_inf)) = false; 
+        end
+
+        if any(valid_users)
+            % Map virtual satellite index -> visible satellite index
+            slot_idx = ceil(virt_sat_idx(valid_users) / G);       %Ex: ceil(15/2)=8;  
+
+            % Map visible satellite index -> real satellite index
+            real_sat_idx(valid_users) = visible_sats_indices(slot_idx);
+
+            % Build boolean association matrix
+            lin_idx = sub2ind([U, S], find(valid_users), real_sat_idx(valid_users));
+            current_association(lin_idx) = true;
+        end    
+        
+    
+        USER_SAT_association.associationTensor(:,:,t) = current_association;
+        prev_association = current_association;
+    end
 end
