@@ -24,7 +24,6 @@
 
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, mode)
 
-tic
 %%Adding general path for all helper functions
 addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
 addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
@@ -98,13 +97,4 @@ visibilityData = Filter_constellation(simulationScenario, minimumElev);
 
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
-fprintf('Channel Sim time: %.3f s\n', toc);
-
-snapshotTime=20;userIdx=1;
-
-%plot_user_spatial_distribution(simulationScenario, configAoI)
-Plot_link_chart(USER_SAT_evolution, snapshotTime, visibilityData, sampleTime, groundEnv)
-%Plot_average_quant(snapshotTime, visibilityData, USER_SAT_evolution, sampleTime, userIdx)
-%Display_system_snapshot(simulationScenario, snapshotTime, visibilityData, sampleTime)
-%Display_globe(simulationScenario);
 end

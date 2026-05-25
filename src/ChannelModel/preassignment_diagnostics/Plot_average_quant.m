@@ -18,7 +18,14 @@ end
 
 figure("Color",'w');
 bar(1:visibilityData.numUsers, numVisiblePerUser);
-
+yline(mean(numVisiblePerUser), ...
+    '--r', ...
+    sprintf('Average visible satellites = %.2f', mean(numVisiblePerUser)), ...
+    'LineWidth', 3.5, ...
+    'LabelHorizontalAlignment', 'left', ...
+    'LabelVerticalAlignment', 'bottom', ...
+    'FontSize', 10, ...
+    'FontWeight', 'bold');
 xlabel('User / Ground Station index');
 ylabel('Number of visible satellites');
 title(sprintf('Visible satellites per user at t = %.1f min', snapshotTime));
@@ -40,28 +47,17 @@ end
 
 figure("Color",'w');
 bar(1:visibilityData.numSats, numUsersPerSat);
-
+yline(mean(numUsersPerSat), ...
+    '--r', ...
+    sprintf('Average visible satellites = %.2f', mean(numUsersPerSat)), ...
+    'LineWidth', 3.5, ...
+    'LabelHorizontalAlignment', 'left', ...
+    'LabelVerticalAlignment', 'bottom', ...
+    'FontSize', 8, ...
+    'FontWeight', 'bold');
 xlabel('Satellite index');
 ylabel('Number of visible users');
 title(sprintf('Visible users per satellite at t = %.1f min', snapshotTime));
-grid on;
-
-
-%% ELEVATION ANGLE DISTRIBUTION
-
-allElevations = [];
-
-for u = 1:visibilityData.numUsers
-    elevU = visibilityData.elevationDeg{timeIdx, u};
-    allElevations = [allElevations, elevU];
-end
-
-figure("Color",'w');
-histogram(allElevations);
-
-xlabel('Elevation angle [deg]');
-ylabel('Number of visible links');
-title(sprintf('Elevation angle distribution at t = %.1f min', snapshotTime));
 grid on;
 
 
