@@ -22,9 +22,9 @@
 function [USER_SAT_evolution]=main_channel_function(numUsers, startTime, stopTime, sampleTime, configConst, configAoI, configChannel, minimumElev)
 
 %%Adding general path for all helper functions
-addpath('ChannelModel/user behavior functions'); %helper functions for user behavior modeling
-addpath('ChannelModel/satellite_helper_functions'); %helper functions for satellite filtering
-addpath('ChannelModel/channel_helper_functions'); %helper functions for channel modeling
+addpath('ChannelModel/user behavior functions/'); %helper functions for user behavior modeling
+addpath('ChannelModel/satellite_helper_functions/'); %helper functions for satellite filtering
+addpath('ChannelModel/channel_helper_functions/'); %helper functions for channel modeling
 addpath('ChannelModel/preassignment_diagnostics/'); %Presentation plots
 
 %%Init starting satellite scenario object with time intervals of reference

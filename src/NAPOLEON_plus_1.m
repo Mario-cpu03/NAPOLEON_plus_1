@@ -44,7 +44,7 @@ sampleTime = 20; % seconds
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 10; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
@@ -93,7 +93,7 @@ configAoI = struct( ...
 % weight normalization according to FCC 21-48 documentation.
 minimumElev = 25;
 
-% CONFIG channel parameters for both ChannelModel and UserSatAssoc modules
+% CONFIG channel parameters for ChannelModel 
 % Those parameters are selected in compliance with the ITU-R P.681-10, but
 % not in full consistency with the Starlink shells, whose operation bands
 % are the Ku and Ka band.
@@ -116,6 +116,21 @@ configChannel = struct( ...
 % p681LMSChannel requires fD_mobile + |fD_sat| < f_sampling/10.
 % Here fD_sat = 0 by default, thus for fD_mobile = 9.26567 Hz,
 % we have that f_samling must be > 92.6567 Hz.
+
+% CONFIG association parameters needed for the compute_base_cost_tesnor
+% function for normalization purposes.
+configAssociation = struct( ...
+    'association_algorithm', association_algorithm, ...
+    'carrierFrequency', configChannel.carrierFrequency, ...
+    'P_sat_lin', configChannel.P_sat_lin, ...
+    'G_sat_lin', configChannel.G_sat_lin, ...
+    'G_u_lin', configChannel.G_u_lin, ...
+    'channel_bandwidth',configChannel.channel_bandwidth, ...
+    'N_0', configChannel.N_0, ...
+    'minimumElev', minimumElev, ...
+    'altitude_satellites', configConst.altitude, ...
+    'altitude_groundStation', 0, ... %we assume sea-level for simplicity
+    'G', 2); % capacity constraint for load balancing on the satellites
 
 
 %%%%%% ------ CHANNEL MODEL MODULE EXECUTION ----- %%%%%%
@@ -141,7 +156,7 @@ configChannel = struct( ...
 % relevance and it is organized as:
 %           (i) TO DEFINE ....
 
-%[USER_SAT_association]=main_association_function(USER_SAT_evolution, association_algorithm);
+[USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation);
 
 
 %%%%%% ------ KPI MODULE EXECUTION ----- %%%%%%
