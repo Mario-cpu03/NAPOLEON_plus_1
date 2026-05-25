@@ -42,31 +42,19 @@
 
 
 %%   THINGS TO FIX:
-%                   1) configCost : This function uses configCost.altitude (see below why). 
-%                                   This structure is defined inside the main_channel_function, but hardcoded here. 
-%                                   To maintain a good code design, should be passed here as an input (all the structure or just the value).
-%                   2) minimumElev : This function uses minimumElev (see below why).
-%                                    This structure is defined inside the main_channel_function, but hardcoded here. 
-%                                    To maintain a good code design, should be passed here as an input (all the structure or just the value).
-%                   3) configChannel : This function uses configChannel.carrierFrequency, configChannel.P_sat_lin, configChannel.G_sat_lin, configChannel.G_u_lin, configChannel.N_0, configChannel.channel_bandwidth
-%                                      This structure is already passed here as input parameter, but need design fix before the calling of this function. 
-%                   
-%                   4) TUNING OF THE SCALAR WEIGHTS BASED ON THE RESULTS EVALUATED WITH THE KPIs   
-%                   5) Defining the possibility, for the final user, to choose the scalar weights  
+%                   1) TUNING OF THE SCALAR WEIGHTS BASED ON THE RESULTS EVALUATED WITH THE KPIs   
+%                   2) Defining the possibility, for the final user, to choose the scalar weights  
 %   
-%%
 
-
-
-
-function [base_const_tensor, weight_handover]=compute_base_cost_tensor(USER_SAT_evolution, association_algorithm, configChannel)
+function [base_const_tensor, weight_handover]=compute_base_cost_tensor(USER_SAT_evolution, configAssociation)
 
 
 distanceTensor = USER_SAT_evolution.distanceTensor;    %If we take into account the distance or the latency nothing changes. Latency is linear proportional to the distance. 
 rateTensor = USER_SAT_evolution.rateTensor;
 validLinkMask = USER_SAT_evolution.validLinkMask;
 
-
+minimumElev = configAssociation.minimumElev;
+association_algorithm = configAssociation.association_algorithm;
 %   ---NORMALIZATION STRATEGY--- 
 %To have a fair comparison between the parameters to optimize, is needed a normalization in order to have all the values in the range [0,1];
 %The normalization of physical quantities (distance, rate,...) is performed using theoretical, a-priori global values rather than 
@@ -81,14 +69,12 @@ validLinkMask = USER_SAT_evolution.validLinkMask;
 
 
     %Theoretical System Constant
-    altitude_satellites = 540e3;     % HARD CODED HERE. MUST BE TAKEN FRON THE STRUCT configConst
-    altitude_groundStation = 0;      % Here we are using the Mean Sea Level (MSL) assumption. This is the same reasoning applied in the thesis. 
+    altitude_satellites = configAssociation.altitude_satellites;     % HARD CODED HERE. MUST BE TAKEN FRON THE STRUCT configConst
+    altitude_groundStation = configAssociation.altitude_groundStation;      % Here we are using the Mean Sea Level (MSL) assumption. This is the same reasoning applied in the thesis. 
                                      % To be more accurate, we could define the altitude_groundStation as the mean altitude of the continental Europe.
                                      % However, the difference in the results is negligible, since the gs altitude is order of magnitude lower than the
                                      % satellites altitude.
     
-    minimumElev = 25;                       %HARD CODED HERE. MUST BE PASSED AS AN INPUT SOMEHOW
-        
     distance_min = altitude_satellites;     % Minimum possible distance (satellite at zenit)
     %The maximum possible distance is the one of a satellite that has an elevation of 25 degree . 
     %In orther to calculate this quantity, we use the function of the SatelliteToolbox
@@ -96,13 +82,20 @@ validLinkMask = USER_SAT_evolution.validLinkMask;
         
     rate_min = 0;            % Minimum possible rate (link lost)
     %The maximum possible rate is the one of the closest possible satellite (540e3m at 90 degree) with no fading effects. 
-    %To calculate the maximum SNR possible WE NEED the configChannel structure
-    c = 3e8; lambda = c/configChannel.carrierFrequency;
+    %To calculate the maximum SNR possible WE NEED the cconfigAssociation
+    %structure
+    carrierFrequency = configAssociation.carrierFrequency;
+    P_sat_lin = configAssociation.P_sat_lin;
+    G_sat_lin=configAssociation.G_sat_lin;
+    G_u_lin =configAssociation.G_u_lin;
+    N_0 = configAssociation.N_0;
+    channel_bandwidth =configAssociation.channel_bandwidth;
     
+    c = 3e8; lambda = c/carrierFrequency;
     fsplGainLinear_max = (lambda / (4*pi*distance_min))^2;
-    snr_max=(configChannel.P_sat_lin * configChannel.G_sat_lin * configChannel.G_u_lin * fsplGainLinear_max) / configChannel.N_0;
+    snr_max=(P_sat_lin * G_sat_lin * G_u_lin * fsplGainLinear_max) / N_0;
     
-    rate_max = configChannel.channel_bandwidth * log2(1 + snr_max);
+    rate_max = channel_bandwidth * log2(1 + snr_max);
     
     %For the distance: the higher is the distance, the higher is the cost. 
     cost_distance = (distanceTensor - distance_min) ./ (distance_max - distance_min);

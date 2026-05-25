@@ -37,30 +37,23 @@
 %                       THE KPI FUNCTION THAT WILL BE IMPLEMENTED
 
 
-%%   THINGS TO FIX:
-%                   1) Input arguments for the compute_base_cost_tensor function (see comments inside the function)
-%                   1) configChannel Should not be defined here, but should
-%                   be given as input parameter of the main_association_function (then tocompute_base_cost_tensor function)
-%   
-%%
 
+function [USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation)
 
-
-function [USER_SAT_association]=main_association_function(USER_SAT_evolution, association_algorithm, configChannel, minimumElev)
-
-    addpath('UserSatAssoc/munkres_helper_functions'); %helper functions for the construction of the weights matrix    
+    addpath('UserSatAssoc/munkres_helper_functions/'); %helper functions for the construction of the weights matrix    
 
     %Here we construct the weight matrix. Since it will be computational costly to buit it time step per time step, here we build a cost tensor without taking into account the handover penalty.  
     %The parameter that models the handover penalty will be give as output of the function. That will be consider when we call the Munkres time instant per time instant. 
     %In this way we optimize as much as possible the computational cost. 
     %As it is defined, the base_cost_tensor has values in range [0,2) (limit case that actually will never happend), not taking into account the handover penalization.
     %Actual values will be in range [0,1.#]
-    
-    [base_cost_tensor,handover_weight]=compute_base_cost_tensor(USER_SAT_evolution, association_algorithm, configChannel, minimumElev);    
+    association_algorithm = configAssociation.association_algorithm;
+
+    [base_cost_tensor,handover_weight]=compute_base_cost_tensor(USER_SAT_evolution, configAssociation);    
         
     [U, S, T] = size(base_cost_tensor);
     
-    G=2;                   % max number of possible connections per satellite. HARD CODED HERE. SHOULD BE PASSED AS AN INPUT FOR THE FUNCTION
+    G=configAssociation.G;                   % max number of possible connections per satellite. HARD CODED HERE. SHOULD BE PASSED AS AN INPUT FOR THE FUNCTION
         
     USER_SAT_association.associationTensor = false(U, S, T);    %Initialization of the output structure
     prev_association = false(U, S);                             %Inizialization of the matrix that we use to consider the handover penalization strategy
