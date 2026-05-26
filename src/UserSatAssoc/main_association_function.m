@@ -54,10 +54,18 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
     [U, S, T] = size(base_cost_tensor);
     
     G=configAssociation.G;                   % max number of possible connections per satellite. HARD CODED HERE. SHOULD BE PASSED AS AN INPUT FOR THE FUNCTION
-        
-    USER_SAT_association.associationTensor = false(U, S, T);    %Initialization of the output structure
-    prev_association = false(U, S);                             %Inizialization of the matrix that we use to consider the handover penalization strategy
+      
+    %%OUTPUT INIT VIA MATRIX APPROACH
+    USER_SAT_association.assignedSatIdx = NaN(U, T);
+    USER_SAT_association.rate_bpS  = NaN(U, T);
+    USER_SAT_association.SNR_lin = NaN(U, T);
+    USER_SAT_association.distance_m = NaN(U, T);
+    USER_SAT_association.latency_s = NaN(U, T);
+    USER_SAT_association.handoverEvent = false(U, T);
     
+    prev_association = false(U, S);
+    
+    c = 3e8;  
     for t = 1:T
     
         real_sat_idx = zeros(U, 1);                                 %inizialization of the vector that will contains the real indices of the associations  
@@ -89,32 +97,8 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
         expanded_cost_matrix = repelem(reduced_cost_matrix, 1, G);          %replace every columns G times
         num_virtual_sats = size(expanded_cost_matrix, 2);
     
-    
-        %Munkres works with square matrix, so we have to insert "dummy" rows in
-        %the expanded_cost_matrix. 
-        num_dummies = num_virtual_sats - U;    
-    
-        if num_dummies > 0
-
-            %if there are more visible slots than users, we add num_dummies rows
-            %to the expanded_cost_matrix. Every row has cost 0
-            dummy_matrix = zeros(num_dummies, num_virtual_sats);
-            square_cost_matrix = [expanded_cost_matrix; dummy_matrix];
-
-        elseif num_dummies < 0
-
-            %if there are more users that visible slots.
-            %almost impossible case, only to be sure that the munkress will always work. 
-            dummy_cols = Inf(U, abs(num_dummies));
-            square_cost_matrix = [expanded_cost_matrix, dummy_cols];
-
-        else
-            square_cost_matrix = expanded_cost_matrix;   
-        end
-    
-    
         %now we havo to perform the munkres
-        assignment = munkres(square_cost_matrix);     %munkres function will return a row vector with dimensions [1 x U]. 
+        assignment = munkres(expanded_cost_matrix);     %munkres function will return a row vector with dimensions [1 x U]. 
                                                       %the value for every index represent the index of the assigned satellite for that user
 
         %Munkres will return also the assignment for the dummy users. We filter out that associations.
@@ -129,10 +113,10 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
         %check. 
         if any(valid_users)
             % Troviamo le coordinate (Riga, Colonna) solo per gli utenti attualmente 'true'
-            idx_cost = sub2ind(size(square_cost_matrix), find(valid_users), virt_sat_idx(valid_users));
+            idx_cost = sub2ind(size(expanded_cost_matrix), find(valid_users), virt_sat_idx(valid_users));
             
             % Troviamo quali di queste connessioni sono fisicamente impossibili (Inf)
-            is_inf = square_cost_matrix(idx_cost) == Inf;
+            is_inf = expanded_cost_matrix(idx_cost) == Inf;
             
             % Selezioniamo gli indici degli utenti validi e li forziamo a 'false' se il costo è Inf
             valid_users_indices = find(valid_users);
@@ -140,19 +124,69 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
         end
 
         if any(valid_users)
+        
             % Map virtual satellite index -> visible satellite index
-            slot_idx = ceil(virt_sat_idx(valid_users) / G);       %Ex: ceil(15/2)=8;  
-
+            slot_idx = ceil(virt_sat_idx(valid_users) / G);
+        
             % Map visible satellite index -> real satellite index
             real_sat_idx(valid_users) = visible_sats_indices(slot_idx);
-
-            % Build boolean association matrix
-            lin_idx = sub2ind([U, S], find(valid_users), real_sat_idx(valid_users));
-            current_association(lin_idx) = true;
-        end    
         
-    
-        USER_SAT_association.associationTensor(:,:,t) = current_association;
+            % Actual users associated at this time step
+            user_idx = find(valid_users);
+        
+            % Build boolean association matrix.
+            % This is still needed internally for the handover penalty at the next
+            % time step, but it is no longer stored over all time steps.
+            lin_idx = sub2ind([U, S], user_idx, real_sat_idx(valid_users));
+            current_association(lin_idx) = true;
+        
+            % Linear indices into the original [U x S x T] channel tensors
+            lin_idx_tensor = sub2ind( ...
+                [U, S, T], ...
+                user_idx, ...
+                real_sat_idx(valid_users), ...
+                t * ones(numel(user_idx), 1));
+        
+            % Compact output storage
+            USER_SAT_association.assignedSatIdx(user_idx, t) = real_sat_idx(valid_users);
+        
+            USER_SAT_association.rate_bps(user_idx, t) = ...
+                USER_SAT_evolution.rateTensor(lin_idx_tensor);
+        
+            USER_SAT_association.SNR_lin(user_idx, t) = ...
+                USER_SAT_evolution.SNRtensor(lin_idx_tensor);
+        
+            USER_SAT_association.distance_m(user_idx, t) = ...
+                USER_SAT_evolution.distanceTensor(lin_idx_tensor);
+        
+            USER_SAT_association.latency_s(user_idx, t) = ...
+                USER_SAT_association.distance_m(user_idx, t) / c;
+        
+        end
+        
+        if t > 1
+        
+            prevSat = USER_SAT_association.assignedSatIdx(:, t-1);
+            currSat = USER_SAT_association.assignedSatIdx(:, t);
+        
+            bothServed = ~isnan(prevSat) & ~isnan(currSat);
+        
+            USER_SAT_association.handoverEvent(:, t) = bothServed & (currSat ~= prevSat);
+        
+        end
+        
         prev_association = current_association;
     end
+
+    USER_SAT_association.numUsers = U;
+    USER_SAT_association.numSats = S;
+    USER_SAT_association.numTimeSteps = T;
+    USER_SAT_association.association_algorithm = association_algorithm;
+
+    USER_SAT_association.timeVec = USER_SAT_evolution.timeVec;
+    
+    USER_SAT_association.totalHandoversPerUser =sum(USER_SAT_association.handoverEvent, 2);
+    
+    USER_SAT_association.totalHandoversSystem = sum(USER_SAT_association.totalHandoversPerUser);
+
 end
