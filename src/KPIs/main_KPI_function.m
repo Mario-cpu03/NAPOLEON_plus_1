@@ -71,6 +71,19 @@
 %                         stored only if configKPI.storeSelectedService is
 %                         true
 
+
+
+%  configKPI MUST BE DEFINED IN THE NAPOLEON_plus_1.m FILE. IN PARTICULAR,
+%  THERE MUST BE DEFINED
+    % configKPI.URLLC.latency_max_URLLC  
+    % configKPI.URLLC.SNRmin_URLLC       
+    % configKPI.URLLC.handoverMax_URLLC  
+    % configKPI.URLLC.time_window        
+    % configKPI.URLLC.percentile_URLLC   
+    % configKPI.eMBB.rateMin_eMBB        
+    % configKPI.eMBB.handoverMax_eMBB    
+    % configKPI.eMBB.time_window         
+    % configKPI.eMBB.bandwidth_Hz
 function []=main_KPI_function ()
 
 end
