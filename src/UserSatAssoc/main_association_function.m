@@ -37,7 +37,6 @@
 %                       THE KPI FUNCTION THAT WILL BE IMPLEMENTED
 
 
-
 function [USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation)
 
     addpath('UserSatAssoc/munkres_helper_functions/'); %helper functions for the construction of the weights matrix    
@@ -57,11 +56,18 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
       
     %%OUTPUT INIT VIA MATRIX APPROACH
     USER_SAT_association.assignedSatIdx = NaN(U, T);
-    USER_SAT_association.rate_bpS  = NaN(U, T);
+    USER_SAT_association.rate_bps  = NaN(U, T);
     USER_SAT_association.SNR_lin = NaN(U, T);
     USER_SAT_association.distance_m = NaN(U, T);
     USER_SAT_association.latency_s = NaN(U, T);
     USER_SAT_association.handoverEvent = false(U, T);
+
+    % DEBUGGING PURPOSES STRUCTURE
+    % This logical matrix is used only to check whether each user is
+    % actually served at each time step. It is independent from the simulator
+    % logic: removing it does not affect the association algorithm, the
+    % Munkres optimization, or the handover computation.
+    USER_SAT_association.servedMask = false(U, T);
     
     prev_association = false(U, S);
     
@@ -149,6 +155,13 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
         
             % Compact output storage
             USER_SAT_association.assignedSatIdx(user_idx, t) = real_sat_idx(valid_users);
+
+            % DEBUGGING PURPOSES STRUCTURE
+            % Mark the users that received a valid selected link at this
+            % time step. This is only used to distinguish "no handover
+            % because the satellite did not change" from "no handover
+            % because the user was not served".
+            USER_SAT_association.servedMask(user_idx, t) = true;
         
             USER_SAT_association.rate_bps(user_idx, t) = ...
                 USER_SAT_evolution.rateTensor(lin_idx_tensor);
@@ -188,5 +201,9 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
     USER_SAT_association.totalHandoversPerUser =sum(USER_SAT_association.handoverEvent, 2);
     
     USER_SAT_association.totalHandoversSystem = sum(USER_SAT_association.totalHandoversPerUser);
+
+    % DEBUGGING PURPOSES STRUCTUREs
+    USER_SAT_association.servedRatioPerUser = mean(USER_SAT_association.servedMask, 2);
+    USER_SAT_association.servedRatioSystem = mean(USER_SAT_association.servedMask(:));
 
 end
