@@ -153,9 +153,29 @@ configAssociation = struct( ...
 % 
 % The USER_SAT_association datastracture is the object of
 % relevance and it is organized as:
-%           (i) TO DEFINE ....
+%           (i) matrix [U x T], one per needed quantity,
+%           (SNR, rate, distance, latency, handover event,...);
+%           (ii) control informations to enable the analysis of said
+%           quantities by the KPI module (time vector, number of users,
+%           number of satellites and number of time samples)
 
 [USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation);
+
+
+
+
+%configKPI structure needed for the KPIs module.
+
+%   THERE MUST BE DEFINED
+    % configKPI.URLLC.latency_max_URLLC  
+    % configKPI.URLLC.SNRmin_URLLC       
+    % configKPI.URLLC.handoverMax_URLLC  
+    % configKPI.URLLC.time_window        
+    % configKPI.URLLC.percentile_URLLC   
+    % configKPI.eMBB.rateMin_eMBB        
+    % configKPI.eMBB.handoverMax_eMBB    
+    % configKPI.eMBB.time_window         
+    % configKPI.eMBB.bandwidth_Hz        
 
 
 
@@ -165,4 +185,4 @@ configAssociation = struct( ...
 % KeyPerformanceIndicators of the association algorithm that the end-user
 % has selected when interacting with the simulator
 
-%KPI_results = main_KPI_function(USER_SAT_association, USER_SAT_evolution, mode, );
+%KPI_results = main_KPI_function(USER_SAT_association, configKPI, configAssociation);
