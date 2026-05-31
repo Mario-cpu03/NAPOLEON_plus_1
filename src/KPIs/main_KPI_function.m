@@ -83,7 +83,27 @@
     % configKPI.eMBB.rateMin_eMBB        
     % configKPI.eMBB.handoverMax_eMBB    
     % configKPI.eMBB.time_window         
-    % configKPI.eMBB.bandwidth_Hz
-function []=main_KPI_function ()
+    % configKPI.eMBB.bandwidth_Hz        
+
+
+
+    function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI, configAssociation)
+
+    % GENERAL KPIs
+    
+
+
+
+
+%%
+    % KPIs ALGORITHM-SPECIFIC KPIs
+    switch(configAssociation.association_algorithm)
+        case 'URLLC'
+            KPI_results.specificURLLC = URLLC_KPIs(USER_SAT_association, configKPI);
+        case 'eMBB'     
+            KPI_results.specificeMBB = eMBB_KPIs(USER_SAT_association, configKPI);    
+    end
+
+
 
 end
