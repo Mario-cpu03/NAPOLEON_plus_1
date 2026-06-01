@@ -102,6 +102,56 @@
 %          for the eMBB based association algorithm:
 %                   (i)   TCR_eMBB : row vector [1 x T] compliance ratio for each time step
 %                   (ii)  specEff  : row vector [1 x T], System Spectral Efficiency [bit/s/Hz] at each time step
-function []=eMBB_KPIs()
+
+function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
+
+    rate_bps      = USER_SAT_association.rate_bps;           
+    handoverEvent = USER_SAT_association.handoverEvent;      
+    servedMask    = USER_SAT_association.servedMask;         
+    numUsers      = USER_SAT_association.numUsers;           
+    numTimeSteps  = USER_SAT_association.numTimeSteps;       
+    
+    rateMin_eMBB     = configKPI.eMBB.rateMin_eMBB;         
+    handoverMax_eMBB = configKPI.eMBB.handoverMax_eMBB;     
+    time_window      = configKPI.eMBB.time_window;          
+    bandwidth_Hz     = configKPI.eMBB.bandwidth_Hz;        
+
+
+%% eMBB Temporal Compliance Ratio
+
+    %here we count the number of handovers for every user in the tme_window
+    handoverCount_timeWind = zeros(numUsers, numTimeSteps);   
+    
+    for t = 1:numTimeSteps
+        %this is a check to see if t-M+1 is <1 (that means that we are at
+        %the "beginning" of the timesteps).
+        t_start = max(1, t - time_window + 1);        
+        % Sum handover events in the window 
+        handoverCount_timeWind(:, t) = sum(handoverEvent(:, t_start:t), 2);   
+    end
+
+    %now we find the logical values that represent the two conditions: 1 if
+    %that condition is satisfied, 0 otherwise.
+    cond_rate     = rate_bps             >= rateMin_eMBB;     
+    cond_handover = handoverCount_timeWind <= handoverMax_eMBB; 
+
+    
+    %now we check if the associations (for each time step) respect the conditions. We use
+    %servdeMask to check is that user is actually served (this is just a
+    %check).    
+    C_eMBB = cond_rate & cond_handover & servedMask;                       %This matrix [U x T] contains logical values. 1 if the conditions are simultaneously satisfied, 0 otherwis
+ 
+    %now we sum all the values for each time step, then average over all
+    %the users.
+    specificeMBB.TCR_eMBB = sum(C_eMBB, 1) / numUsers;                     %This is a row vector [1 x T] that contains, for each time step, the percentage of users that 
+                                                                           %satisfy the conditions
+
+    %% System Spectral Efficiency
+
+    %first we sum, for aech time step, the rates of all the users
+    sum_rate_t = sum(rate_bps, 1);       
+
+    %then we calculate the spectral efficiency
+    specificeMBB.specEff = sum_rate_t / bandwidth_Hz;   
 
 end

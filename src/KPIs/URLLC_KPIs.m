@@ -104,6 +104,84 @@
 %                   (ii)  PL_URLLC_temporal:row vector [1 x T], 90th-percentile latency for each time step;
 %                   (iii) PL_URLLC_global : 90th-percentile latency for the
 %                   whole simulation
-function []=URLLC_KPIs()
+
+
+function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
+    latency_s     = USER_SAT_association.latency_s;
+    SNR_lin       = USER_SAT_association.SNR_lin;            
+    handoverEvent = USER_SAT_association.handoverEvent;      
+    servedMask    = USER_SAT_association.servedMask;         
+    numUsers      = USER_SAT_association.numUsers;           
+    numTimeSteps  = USER_SAT_association.numTimeSteps;       
+    
+    latency_max_URLLC  = configKPI.URLLC.latency_max_URLLC;      
+    SNRmin_URLLC       = configKPI.URLLC.SNRmin_URLLC;           
+    handoverMax_URLLC  = configKPI.URLLC.handoverMax_URLLC;      
+    time_window        = configKPI.URLLC.time_window;     
+
+
+    %% URLLC Temporal Compliance Ratio 
+
+    %here we count the number of handovers for every user in the tme_window
+    handoverCount_timeWind = zeros(numUsers, numTimeSteps);   
+    
+    for t = 1:numTimeSteps
+        %this is a check to see if t-M+1 is <1 (that means that we are at
+        %the "beginning" of the timesteps).
+        t_start = max(1, t - time_window + 1);        
+        % Sum handover events in the window 
+        handoverCount_timeWind(:, t) = sum(handoverEvent(:, t_start:t), 2);   
+    end
+
+    %now we find the logical values that represent the three conditions
+    cond_latency  = latency_s <= latency_max_URLLC;
+    cond_SNR     = SNR_lin   >= SNRmin_URLLC;
+    cond_handover = handoverCount_timeWind <=handoverMax_URLLC;
+
+    %now we check if the associations (for each time step) respect the conditions. We use
+    %servdeMask to check is that user is actually served (this is just a
+    %check).
+    C_URLLC = cond_latency & cond_SNR & cond_handover & servedMask;         %This matrix [U x T] contains logical values. 1 if the conditions are satisfied, 0 otherwis
+ 
+
+    %now we have to average these values for each time step
+    specificURLLC.TCR_URLLC = sum(C_URLLC, 1) / numUsers;                          %This is a row vector [1 x T] that contains, for each time step, the percentage of users that 
+                                                                     %satisfy the conditions
+                                                                     
+
+%% URLLC 90th-percentile latency
+%We will calculate the percentile for the whole simulation, and the
+%percentile for each time step.
+
+    p=0.90;   %percentile 
+
+
+    %TEMPORAL PERCENTILE
+    PL_URLLC_temporal = zeros(1, numTimeSteps);    
+    for t = 1:numTimeSteps
+    
+        % first we have to find which users are served at time step t, and take
+        % its latencies
+        users_served_at_t = servedMask(:, t);           
+        latency_at_t = latency_s(:, t);                   
+        served_latencies_t = latency_at_t(users_served_at_t);   
+    
+        %given the latencies, we can compute percentile   
+        PL_URLLC_temporal(t) = quantile(served_latencies_t, p);
+    end
+    specificURLLC.PL_URLLC_temporal = PL_URLLC_temporal;
+
+
+    %GLOBAL PERCENTILE 
+    %first we exract all the latencies values, for the users for every
+    %time step. We use servedMask to exract only the users that are served
+    %for each time step)
+    latency_all_samples = latency_s(:);    
+    served_all_samples  = servedMask(:);   
+    all_served_latencies = latency_all_samples(served_all_samples);  
+    
+    %we calculate the percentile
+    specificURLLC.PL_URLLC_global = quantile(all_served_latencies, p);
+    
 
 end
