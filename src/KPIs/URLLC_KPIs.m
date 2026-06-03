@@ -153,7 +153,7 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
 %We will calculate the percentile for the whole simulation, and the
 %percentile for each time step.
 
-    p=0.90;   %percentile 
+    p=configKPI.URLLC.percentile_URLLC;   %percentile 
 
 
     %TEMPORAL PERCENTILE

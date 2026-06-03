@@ -19,9 +19,7 @@
 
 %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
 %       1. USER_SAT_association : Data Structure containing the output of
-%       the UserSatAssoc module:
-%                   (i) associationTensor: tensor containing the selected 
-%                       user-satellite association.
+%       the UserSatAssoc module.
 %
 %       2. USER_SAT_evolution : Structure containing the output of the
 %       ChannelModel module.
@@ -35,14 +33,6 @@
 %                         KPI thresholds
 %                   (iv)   eMBB : sub-structure containing eMBB-specific KPI
 %                         thresholds
-%
-%       4. configAssociation : Data Structure containing the information on
-%       the selected association policy:
-%
-%                   (i) association_algorithm : string identifying the
-%                       selected policy. Supported values are:
-%                           "URLLC"
-%                           "eMBB"
 
 %%%%%% ----- INTERNAL DATA STRUCTURE ----- %%%%%%
 %       The function internally builds selectedService, a compact structure
@@ -69,41 +59,16 @@
 %                   (iii) specific : algorithm-specific KPI results
 %                   (iv)  selectedService : optional compact service data,
 %                         stored only if configKPI.storeSelectedService is
-%                         true
+%                         true      
 
+    function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI)
 
-
-%  configKPI MUST BE DEFINED IN THE NAPOLEON_plus_1.m FILE. IN PARTICULAR,
-%  THERE MUST BE DEFINED
-    % configKPI.URLLC.latency_max_URLLC  
-    % configKPI.URLLC.SNRmin_URLLC       
-    % configKPI.URLLC.handoverMax_URLLC  
-    % configKPI.URLLC.time_window        
-    % configKPI.URLLC.percentile_URLLC   
-    % configKPI.eMBB.rateMin_eMBB        
-    % configKPI.eMBB.handoverMax_eMBB    
-    % configKPI.eMBB.time_window         
-    % configKPI.eMBB.bandwidth_Hz        
-
-
-
-    function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI, configAssociation)
-
-    % GENERAL KPIs
-    
-
-
-
-
-%%
     % KPIs ALGORITHM-SPECIFIC KPIs
     switch(configAssociation.association_algorithm)
         case 'URLLC'
-            KPI_results.specificURLLC = URLLC_KPIs(USER_SAT_association, configKPI);
+            KPI_results.specificURLLC = URLLC_KPIs(USER_SAT_association, configKPI.URLLC);
         case 'eMBB'     
-            KPI_results.specificeMBB = eMBB_KPIs(USER_SAT_association, configKPI);    
+            KPI_results.specificeMBB = eMBB_KPIs(USER_SAT_association, configKPI.eMBB);    
     end
-
-
 
 end

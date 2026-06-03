@@ -55,37 +55,8 @@
 
 %% %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
 %       1. USER_SAT_association : Data Structure containing metadata and
-%           tensor quantities required by the KPI module:
-%                   (i)     assignedSatIdx : matrix [U x T] containing the
-%                           index of the satellite assigned to each user at
-%                           every time instant
-%                   (ii)    SNR_lin : matrix [U x T] containing the linear
-%                           SNR for every user-satellite association
-%                   (iii)   rate_bps : matrix [U x T] containing the
-%                           achievable rate [bit/s] for every association
-%                   (iv)    distance_m : matrix [U x T] containing the
-%                           slant range [m] for every association
-%                   (v)     latency_s : matrix [U x T] containing the
-%                           one-way propagation latency [s] for every
-%                           association, computed as distance_m / c
-%                   (vi)    handoverEvent : matrix [U x T] logical, TRUE
-%                           if a handover occurred at that (user, time) pair
-%                   (vii)   servedMask : matrix [U x T] logical, TRUE if
-%                           the user has a valid association at that time step
-%                   (viii)  timeVec : [1 x T datetime] vector of simulation
-%                           time instants
-%                   (ix)    totalHandoversPerUser : [U x 1] total number of
-%                           handover events per user across all time steps
-%                   (x)     servedRatioPerUser : [U x 1] fraction of time
-%                           steps during which each user is served
-%                   (xi)    totalHandoversSystem : scalar, total handover
-%                           events across all users and time steps
-%                   (xii)   servedRatioSystem : scalar, fraction of
-%                           (user, time) pairs that are successfully served
-%                   (xiii)  association_algorithm : string identifier of
-%                           the algorithm used for user-satellite assignment
-%                   (xiv)   numUsers, numSats, numTimeSteps : scalars
-%                           defining the simulation scenario dimensions
+%           tensor quantities required by the KPI module.
+%
 %       2. configKPI.eMBB : Data Structure containing the parameters needed
 %           by the eMBB KPI module:
 %                   (i)   rateMin_eMBB : minimum achievable rate [bit/s]
@@ -105,11 +76,11 @@
 
 function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
 
-    rate_bps      = USER_SAT_association.rate_bps;           
+    rate_bps  = USER_SAT_association.rate_bps;           
     handoverEvent = USER_SAT_association.handoverEvent;      
-    servedMask    = USER_SAT_association.servedMask;         
-    numUsers      = USER_SAT_association.numUsers;           
-    numTimeSteps  = USER_SAT_association.numTimeSteps;       
+    servedMask = USER_SAT_association.servedMask;         
+    numUsers = USER_SAT_association.numUsers;           
+    numTimeSteps = USER_SAT_association.numTimeSteps;       
     
     rateMin_eMBB     = configKPI.eMBB.rateMin_eMBB;         
     handoverMax_eMBB = configKPI.eMBB.handoverMax_eMBB;     

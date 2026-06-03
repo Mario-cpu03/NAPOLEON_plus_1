@@ -43,7 +43,7 @@ sampleTime = 20; % seconds
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 300; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
@@ -61,7 +61,7 @@ mode = "forecast"; %mode = "ideal";
 %
 %   (ii) eMBB-based algorithm, for a maximum throughput, minimum HO
 %   algorithm.
-association_algorithm = "URLLC"; % association_algorithm = "eMBB"
+association_algorithm = "eMBB"; % association_algorithm = "eMBB"
 
 
 %%%%%% ------ CONFIGURATION DATA STRUCTURES ----- %%%%%%
@@ -132,6 +132,20 @@ configAssociation = struct( ...
     'G', 2); % capacity constraint for load balancing on the satellites
 
 
+%  CONFIG kpi parameters and thresholds 
+configKPI = struct( ...
+    'URLLC', struct ( ...
+        'latency_max_URLLC', 0, ...
+        'SNRmin_URLLC', 0, ...
+        'handoverMax_URLLC', 0, ...
+        'percentile_URLLC', 0.90, ...
+        'time_window', 0), ...
+    'eMBB', struct ( ...
+        'rateMin_eMBB',0, ...
+        'handoverMax_eMBB', 0, ...
+        'time_window',0, ...
+        'bandwidth_Hz',configChannel.channel_bandwidth));
+
 %%%%%% ------ CHANNEL MODEL MODULE EXECUTION ----- %%%%%%
 % We call the main_channel_function to obtain the temporal evolution of the
 % satellite - user links. The USER_SAT_evolution datastructure is the
@@ -165,4 +179,4 @@ configAssociation = struct( ...
 % KeyPerformanceIndicators of the association algorithm that the end-user
 % has selected when interacting with the simulator
 
-%KPI_results = main_KPI_function(USER_SAT_association, USER_SAT_evolution, mode, );
+[KPI_results]=main_KPI_function (USER_SAT_association, configKPI, configAssociation);
