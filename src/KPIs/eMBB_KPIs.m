@@ -72,7 +72,7 @@
 %       1. specificeMBB : Data Structure containing the calculated KPIs
 %          for the eMBB based association algorithm:
 %                   (i)   TCR_eMBB : row vector [1 x T] compliance ratio for each time step
-%                   (ii)  specEff  : row vector [1 x T], System Spectral Efficiency [bit/s/Hz] at each time step
+%                   (ii)  aggregateSpecEff  : row vector [1 x T], System Spectral Efficiency [bit/s/Hz] at each time step
 
 function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
 
@@ -123,6 +123,6 @@ function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
     sum_rate_t = sum(rate_bps, 1);       
 
     %then we calculate the spectral efficiency
-    specificeMBB.specEff = sum_rate_t / bandwidth_Hz;   
+    specificeMBB.aggregateSpecEff = sum_rate_t/ bandwidth_Hz;   
 
 end

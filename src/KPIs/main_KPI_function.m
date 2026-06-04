@@ -27,11 +27,9 @@
 %       3. configKPI : Data Structure containing the parameters needed by
 %       the KPI module
 %                   (i)   bandwidthHz : system bandwidth [Hz]
-%                   (ii)  c : speed of light [m/s], optional. If absent,
-%                         c = 3e8 m/s is used
-%                   (iii)  URLLC : sub-structure containing URLLC-specific
+%                   (ii)  URLLC : sub-structure containing URLLC-specific
 %                         KPI thresholds
-%                   (iv)   eMBB : sub-structure containing eMBB-specific KPI
+%                   (iii)   eMBB : sub-structure containing eMBB-specific KPI
 %                         thresholds
 
 %%%%%% ----- INTERNAL DATA STRUCTURE ----- %%%%%%
@@ -61,14 +59,14 @@
 %                         stored only if configKPI.storeSelectedService is
 %                         true      
 
-    function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI)
+function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI)
 
     % KPIs ALGORITHM-SPECIFIC KPIs
-    switch(configAssociation.association_algorithm)
+    switch(USER_SAT_association.association_algorithm)
         case 'URLLC'
-            KPI_results.specificURLLC = URLLC_KPIs(USER_SAT_association, configKPI.URLLC);
+            KPI_results.specificURLLC = URLLC_KPIs(USER_SAT_association, configKPI);
         case 'eMBB'     
-            KPI_results.specificeMBB = eMBB_KPIs(USER_SAT_association, configKPI.eMBB);    
+            KPI_results.specificeMBB = eMBB_KPIs(USER_SAT_association, configKPI);    
     end
 
 end
