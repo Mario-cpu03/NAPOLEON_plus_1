@@ -122,9 +122,9 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
                                                                      %satisfy the conditions
                                                                      
 
-%% URLLC 90th-percentile latency
-%We will calculate the percentile for the whole simulation, and the
-%percentile for each time step.
+    %% URLLC 90th-percentile latency
+    %We will calculate the percentile for the whole simulation, and the
+    %percentile for each time step.
 
     p=configKPI.URLLC.percentile_URLLC;   %percentile 
 
@@ -156,5 +156,4 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
     %we calculate the percentile
     specificURLLC.PL_URLLC_global = quantile(all_served_latencies, p);
     
-
 end

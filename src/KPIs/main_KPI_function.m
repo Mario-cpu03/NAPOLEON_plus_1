@@ -61,6 +61,9 @@
 
 function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI)
 
+    % KPIs GENERAL
+    KPI_results.generalKPIs = general_KPIS(USER_SAT_association, configKPI);
+
     % KPIs ALGORITHM-SPECIFIC KPIs
     switch(USER_SAT_association.association_algorithm)
         case 'URLLC'

@@ -168,6 +168,6 @@ configKPI.URLLC=URLLC; configKPI.eMBB=eMBB;
 %%%%%% ------ KPI MODULE EXECUTION ----- %%%%%%
 % We call the main_KPI_function to obtain the evaluation by means of
 % KeyPerformanceIndicators of the association algorithm that the end-user
-% has selected when interacting with the simulator
+% has selected when interacting with the GUI
 
 [KPI_results]=main_KPI_function(USER_SAT_association, configKPI);
