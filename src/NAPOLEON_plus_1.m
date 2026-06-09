@@ -52,7 +52,7 @@ mode = "forecast"; %mode = "ideal";
 %
 %   (ii) eMBB-based algorithm, for a maximum throughput, minimum HO
 %   algorithm.
-association_algorithm = "URLLC"; % association_algorithm = "eMBB"
+association_algorithm = "eMBB"; % association_algorithm = "URLLC"
 
 
 %%%%%% ------ CONFIGURATION DATA STRUCTURES ----- %%%%%%
