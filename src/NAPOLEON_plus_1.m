@@ -23,17 +23,8 @@ addpath('ChannelModel'); addpath('UserSatAssoc');addpath('KPIs');addpath('GUI');
 % one-day-long simulation with 15 satellitar orbits
 
 startTime  = datetime('today');
-stopTime   = startTime + hours(1) + minutes(36);
+stopTime   = startTime + hours(2) + minutes(72); %NOTE: Simulation time to avoid too much transients
 
-% At h = 540 km and elevation >= 35 deg, a favorable pass lasts
-% about tVis = 190 s. To fix the sample time at 10 seconds means to have a
-% total number of samples in the visibility window of about
-% sampleTime = tVis / N => N ~ 190 / 10 = 19 samples
-
-% A lighter version to fix approximately 8 samples per visibility time,
-% similarly, yields sampleTime = 24s, with some margin for shorter passage
-% we may fix sampleTime = 20. That is, a total of 289 samples in the 1h35m
-% simulation time window.
 sampleTime = 20; % seconds
 
 
@@ -43,7 +34,7 @@ sampleTime = 20; % seconds
 % order of ten, maximum a hundred for the sake of computational
 % complexity at run time and correct functioning of the simulator
 
-numUsers = 300; % Example number of users, TODO GUI. Momentarily hard-coded
+numUsers = 100; % Example number of users, TODO GUI. Momentarily hard-coded
 % When the GUI will be implemented, an exception management shall be
 % developed: either the end-user can choose numUsers from a pool of
 % available values or, if numUsers is over a certain range, it will be
@@ -61,7 +52,7 @@ mode = "forecast"; %mode = "ideal";
 %
 %   (ii) eMBB-based algorithm, for a maximum throughput, minimum HO
 %   algorithm.
-association_algorithm = "URLLC"; % association_algorithm = "eMBB"
+association_algorithm = "eMBB"; % association_algorithm = "URLLC"
 
 
 %%%%%% ------ CONFIGURATION DATA STRUCTURES ----- %%%%%%
@@ -132,6 +123,21 @@ configAssociation = struct( ...
     'G', 2); % capacity constraint for load balancing on the satellites
 
 
+%  CONFIG kpi parameters and thresholds 
+URLLC = struct ( ...
+        'latency_max_URLLC', 3e-3, ... % we fix latency max as such to enable the usage of most elevations but still discrimating good and bad latencies, given the values reported in https://hscc.csie.ncu.edu.tw/38811.pdf
+        'SNRmin_URLLC', 10, ... %URLLC packets have size 32 bytes, (Chap 4.10, https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-M.2410-2017-PDF-E.pdf). With deadline T=3ms, the required minimum spectral efficiency is minimumRate/B=256/BT, thus yielding a minimum (shannon capacity) SNR=-19dB. Thus, we fix SNR=10 for robustness
+        'handoverMax_URLLC', 1, ... %Accelerating Handover in Mobile Satellite Network Wu et al. states that every 2-5minutes around 600km we have an HO. This way we admit at most 1 HO, so that the average is APPROXIMATELY 7.55e-3 HO/s. 
+        'percentile_URLLC', 0.90, ...
+        'time_window', 6); %approximately half pass of a satellite, given that in our domain a satellite is visible for approx 4 minutes, so 120s/20s = 6 samples.
+eMBB = struct ( ...
+        'rateMin_eMBB',50e6, ... % as defined by 3rd Generation Partnership Project Technical Specification Group Radio Access Network; Study on New Radio (NR) to support non-terrestrial networks, Section 4.3, page 16, the minimum downlink rate is 50Mbps
+        'handoverMax_eMBB', 2, ... %we admit at most 2 HOs every 4minutes-ish, so that the average is APPROXIMATELY 8e-3 HO/s, more permissive than the URLLC 
+        'time_window',13, ... %approximately a whole pass of a satellite is 4.4min so the nearest integer is 260s, which corresponds to 260s/20s = 13 samples
+        'bandwidth_Hz',configChannel.channel_bandwidth);
+configKPI.URLLC=URLLC; configKPI.eMBB=eMBB;
+
+
 %%%%%% ------ CHANNEL MODEL MODULE EXECUTION ----- %%%%%%
 % We call the main_channel_function to obtain the temporal evolution of the
 % satellite - user links. The USER_SAT_evolution datastructure is the
@@ -149,40 +155,19 @@ configAssociation = struct( ...
 %%%%%% ------ USER SATELLITE ASSOCIATION MODULE EXECUTION ----- %%%%%%
 % We call the main_association_function to obtain the history of association
 % outcomes, dictated by each algorithm, between user and
-% satellites.
-% 
-% The USER_SAT_association datastracture is the object of
-% relevance and it is organized as:
-%           (i) matrix [U x T], one per needed quantity,
-%           (SNR, rate, distance, latency, handover event,...);
+% satellites. The USER_SAT_association datastracture is the object of
+% relevance and it is organized as a structure of:
+%           (i) matrices [UxT], one per needed quantity.
 %           (ii) control informations to enable the analysis of said
-%           quantities by the KPI module (time vector, number of users,
-%           number of satellites and number of time samples)
+%           quantities by the KPI modules 
+%           (iii) extra infos for debugging and internal analysis
 
 [USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation);
-
-
-
-
-%configKPI structure needed for the KPIs module.
-
-%   THERE MUST BE DEFINED
-    % configKPI.URLLC.latency_max_URLLC  
-    % configKPI.URLLC.SNRmin_URLLC       
-    % configKPI.URLLC.handoverMax_URLLC  
-    % configKPI.URLLC.time_window        
-    % configKPI.URLLC.percentile_URLLC   
-    % configKPI.eMBB.rateMin_eMBB        
-    % configKPI.eMBB.handoverMax_eMBB    
-    % configKPI.eMBB.time_window         
-    % configKPI.eMBB.bandwidth_Hz        
-
-
 
 
 %%%%%% ------ KPI MODULE EXECUTION ----- %%%%%%
 % We call the main_KPI_function to obtain the evaluation by means of
 % KeyPerformanceIndicators of the association algorithm that the end-user
-% has selected when interacting with the simulator
+% has selected when interacting with the GUI
 
-%KPI_results = main_KPI_function(USER_SAT_association, configKPI, configAssociation);
+[KPI_results]=main_KPI_function(USER_SAT_association, configKPI);
