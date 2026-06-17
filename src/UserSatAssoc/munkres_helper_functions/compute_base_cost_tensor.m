@@ -113,8 +113,8 @@ association_algorithm = configAssociation.association_algorithm;
     
         case "eMBB"
             weight_distance = 0.0;      %Not taking into account latency
-            weight_handover = 0.4;      %High penalty to handover frequency
-            weight_rate = 0.6;          %Maximum priority to the rate
+            weight_handover = 0.2;      %High penalty to handover frequency
+            weight_rate = 0.8;          %Maximum priority to the rate
     
        %Is it possible to define other vaues for the weights that are given by the final user. That values must be given as an input for this function.
     end
