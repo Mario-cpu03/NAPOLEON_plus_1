@@ -46,7 +46,7 @@
 
 function [USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation)
 
-    addpath('UserSatAssoc/munkres_helper_functions/'); %helper functions for the construction of the weights matrix    
+    %addpath('UserSatAssoc/munkres_helper_functions/'); %helper functions for the construction of the weights matrix    
 
     %Here we construct the weight matrix. Since it will be computational costly to buit it time step per time step, here we build a cost tensor without taking into account the handover penalty.  
     %The parameter that models the handover penalty will be give as output of the function. That will be consider when we call the Munkres time instant per time instant. 
