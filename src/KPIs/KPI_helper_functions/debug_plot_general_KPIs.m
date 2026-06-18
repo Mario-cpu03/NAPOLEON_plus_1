@@ -1,28 +1,39 @@
-function debug_plot_general_KPIs(generalKPIs, USER_SAT_association, userIdx)
-
-%% Debugging General KPI Plotting Function
+%% Debugging General + Specific KPI Plotting Function
 % DEBUGGING PURPOSES STRUCTURE
 %
-% The scope of this helper function is to display the quantities computed
-% by the general_KPIS function using one clear representation per physical
-% quantity.
+% This function gives a complete debugging overview of the algorithm:
 %
-% This function is intended only for debugging and validation purposes.
-% It is not meant to generate final report-quality figures.
+% GENERAL KPIs:
+%       (i)   cross-user mean rate evolution;
+%       (ii)  cross-user mean SNR evolution;
+%       (iii) time-averaged rate per user;
+%       (iv)  time-averaged SNR per user;
+%       (v)   distributional fairness CDFs;
+%       (vi)  service ratio diagnostics;
+%       (vii) representative-user selected-link QoS evolution.
 %
-% Plotting convention:
-%       (i)   rates are displayed in Mbit/s;
-%       (ii)  SNR is displayed in dB;
-%       (iii) service state and handover events are displayed as binary
-%             sampled time series;
-%       (iv)  assigned satellite index is displayed as a raw index.
+% SPECIFIC KPIs:
+%       If association_algorithm == "URLLC":
+%           (i)  URLLC Temporal Compliance Ratio;
+%           (ii) URLLC percentile latency evolution.
+%
+%       If association_algorithm == "eMBB":
+%           (i)  eMBB Temporal Compliance Ratio;
+%           (ii) eMBB system spectral efficiency evolution.
 %
 % IMPORTANT:
 % In the representative-user section, the plotted rate and SNR are NOT
 % averages. They are the sampled time evolution of the selected link of the
-% chosen user. Since we work at single-connectivity, at each time step
-% the selected user has at most one assigned satellite and therefore one
+% chosen user. Since we work at single-connectivity, at each time step the
+% selected user has at most one assigned satellite and therefore one
 % realized rate and one realized SNR.
+
+function debug_plot_general_KPIs(generalKPIs, specificKPIs, USER_SAT_association, configKPI, userIdx)
+    %% INPUT CHECKS
+
+    if nargin < 5 || isempty(userIdx)
+        userIdx = 1;
+    end
 
     numUsers = USER_SAT_association.numUsers;
     numTimeSteps = USER_SAT_association.numTimeSteps;
@@ -41,23 +52,30 @@ function debug_plot_general_KPIs(generalKPIs, USER_SAT_association, userIdx)
 
     userAxis = 1:numUsers;
 
+    if isfield(USER_SAT_association, 'association_algorithm')
+        association_algorithm = string(USER_SAT_association.association_algorithm);
+    else
+        association_algorithm = "UNKNOWN";
+    end
+
 
     %% COMMAND WINDOW DEBUG SUMMARY
 
     fprintf('\n');
     fprintf('============================================================\n');
-    fprintf('DEBUGGING PURPOSES STRUCTURE: GENERAL KPI SUMMARY\n');
+    fprintf('DEBUGGING PURPOSES STRUCTURE: GENERAL + SPECIFIC KPI SUMMARY\n');
     fprintf('============================================================\n');
 
     fprintf('\nSimulation size:\n');
     fprintf('  Number of users      : %d\n', numUsers);
     fprintf('  Number of time steps : %d\n', numTimeSteps);
+    fprintf('  Association algorithm: %s\n', association_algorithm);
 
-    fprintf('\nThroughput KPIs:\n');
+    fprintf('\nGeneral throughput KPIs:\n');
     fprintf('  Global mean of time-averaged user rate [Mbit/s] : %.6f\n', ...
         generalKPIs.throughput.globalAvgUserRate_Mbps);
 
-    fprintf('\nSNR KPIs:\n');
+    fprintf('\nGeneral SNR KPIs:\n');
     fprintf('  Global mean of time-averaged user SNR [dB] : %.6f\n', ...
         generalKPIs.SNR.globalAvgUserSNR_dB);
 
@@ -74,6 +92,40 @@ function debug_plot_general_KPIs(generalKPIs, USER_SAT_association, userIdx)
     fprintf('\nSystem service diagnostics:\n');
     fprintf('  System served ratio : %.6f\n', ...
         generalKPIs.serviceContinuity.servedRatioSystem);
+
+    fprintf('\nSpecific KPI diagnostics:\n');
+
+    switch association_algorithm
+
+        case "URLLC"
+
+            if isfield(specificKPIs, 'TCR_URLLC')
+                fprintf('  Mean URLLC TCR : %.6f\n', ...
+                    mean(specificKPIs.TCR_URLLC, 'omitnan'));
+            end
+
+            if isfield(specificKPIs, 'PL_URLLC_global')
+                fprintf('  Global URLLC latency percentile [ms] : %.6f\n', ...
+                    specificKPIs.PL_URLLC_global * 1e3);
+            end
+
+        case "eMBB"
+
+            if isfield(specificKPIs, 'TCR_eMBB')
+                fprintf('  Mean eMBB TCR : %.6f\n', ...
+                    mean(specificKPIs.TCR_eMBB, 'omitnan'));
+            end
+
+            if isfield(specificKPIs, 'aggregateSpecEff')
+                fprintf('  Mean eMBB system spectral efficiency [bit/s/Hz] : %.6f\n', ...
+                    mean(specificKPIs.aggregateSpecEff, 'omitnan'));
+            end
+
+        otherwise
+
+            fprintf('  No recognized specific KPI family.\n');
+
+    end
 
     fprintf('============================================================\n\n');
 
@@ -224,5 +276,83 @@ function debug_plot_general_KPIs(generalKPIs, USER_SAT_association, userIdx)
     xlabel(xLabelTime);
     ylabel('Satellite index');
     title('Representative-user assigned satellite evolution');
+
+
+    %% FIGURE 6: ALGORITHM-SPECIFIC KPI DEBUG PLOTS
+
+    switch association_algorithm
+
+        case "URLLC"
+
+            TCR_URLLC = specificKPIs.TCR_URLLC;
+
+            PL_URLLC_temporal_ms = specificKPIs.PL_URLLC_temporal * 1e3;
+            PL_URLLC_global_ms = specificKPIs.PL_URLLC_global * 1e3;
+
+            latencyThreshold_ms = configKPI.URLLC.latency_max_URLLC * 1e3;
+            percentile_URLLC = configKPI.URLLC.percentile_URLLC;
+
+            figure('Name', 'DEBUG - Specific KPIs - URLLC');
+
+            subplot(2,1,1);
+            stairs(timeAxis, TCR_URLLC, 'LineWidth', 1.5);
+            grid on;
+            ylim([-0.05, 1.05]);
+            xlabel(xLabelTime);
+            ylabel('Compliant-user fraction');
+            title('URLLC Temporal Compliance Ratio');
+
+            hold on;
+            yline(mean(TCR_URLLC, 'omitnan'), ':', 'Mean TCR');
+            hold off;
+
+            subplot(2,1,2);
+            stairs(timeAxis, PL_URLLC_temporal_ms, 'LineWidth', 1.5);
+            grid on;
+            xlabel(xLabelTime);
+            ylabel(sprintf('%.0fth-percentile latency [ms]', ...
+                percentile_URLLC * 100));
+            title(sprintf('URLLC %.0fth-percentile latency evolution', ...
+                percentile_URLLC * 100));
+
+            hold on;
+            yline(PL_URLLC_global_ms, '--', ...
+                sprintf('Global %.0fth percentile', percentile_URLLC * 100));
+            yline(latencyThreshold_ms, ':', 'Latency threshold');
+            hold off;
+
+
+        case "eMBB"
+
+            TCR_eMBB = specificKPIs.TCR_eMBB;
+            etaSys = specificKPIs.aggregateSpecEff;
+
+            figure('Name', 'DEBUG - Specific KPIs - eMBB');
+
+            subplot(2,1,1);
+            stairs(timeAxis, TCR_eMBB, 'LineWidth', 1.5);
+            grid on;
+            ylim([-0.05, 1.05]);
+            xlabel(xLabelTime);
+            ylabel('Compliant-user fraction');
+            title('eMBB Temporal Compliance Ratio');
+
+            hold on;
+            yline(mean(TCR_eMBB, 'omitnan'), ':', 'Mean TCR');
+            hold off;
+
+            subplot(2,1,2);
+            stairs(timeAxis, etaSys, 'LineWidth', 1.5);
+            grid on;
+            xlabel(xLabelTime);
+            ylabel('System spectral efficiency [bit/s/Hz]');
+            title('eMBB system spectral efficiency evolution');
+
+
+        otherwise
+
+            warning('Unknown association algorithm. No specific KPI plots generated.');
+
+    end
 
 end
