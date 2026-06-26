@@ -55,35 +55,8 @@
 
 %% %%%%%% ----- INPUT PARAMETERS ----- %%%%%%
 %       1. USER_SAT_association : Data Structure containing metadata and
-%           tensor quantities required by the KPI module:
-%                   (i)     assignedSatIdx : matrix [U x T] containing the
-%                           index of the satellite assigned to each user at
-%                           every time instant
-%                   (ii)    SNR_lin : matrix [U x T] containing the linear
-%                           SNR for every user-satellite association
-%                   (iii)   rate_bps : matrix [U x T] containing the
-%                           achievable rate [bit/s] for every association
-%                   (iv)    distance_m : matrix [U x T] containing the
-%                   (v)     latency_s : matrix [U x T] containing the
-%                           one-way propagation latency [s] for every
-%                           association, computed as distance_m / c
-%                   (vi)    handoverEvent : matrix [U x T] logical, TRUE
-%                           if a handover occurred at that (user, time) pair
-%                   (vii)   servedMask : matrix [U x T] logical, TRUE if
-%                           the user has a valid association at that time step
-%                   (viii)  timeVec : [1 x T datetime] vector of simulation
-%                           time instants
-%                   (ix)    totalHandoversPerUser : [U x 1] total number of
-%                           handover events per user across all time steps
-%                   (x)     servedRatioPerUser : [U x 1] 
-%                   (xi)    totalHandoversSystem : scalar, total handover
-%                           events across all users and time steps
-%                   (xii)   servedRatioSystem : 
-%                   (xiii)  association_algorithm : string identifier of
-%                           the algorithm used for user-satellite assignment
-%                   (xiv)   numUsers, numSats, numTimeSteps : scalars
-%                           defining the simulation scenario dimensions
-
+%           tensor quantities required by the KPI module.
+%
 %       2. configKPI.URLLC : Data Structure containing the parameters needed by
 %       the URLLC KPI module
 %                   (i)   latency_max_URLLC : maximum latency for the
@@ -149,11 +122,11 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
                                                                      %satisfy the conditions
                                                                      
 
-%% URLLC 90th-percentile latency
-%We will calculate the percentile for the whole simulation, and the
-%percentile for each time step.
+    %% URLLC 90th-percentile latency
+    %We will calculate the percentile for the whole simulation, and the
+    %percentile for each time step.
 
-    p=0.90;   %percentile 
+    p=configKPI.URLLC.percentile_URLLC;   %percentile 
 
 
     %TEMPORAL PERCENTILE
@@ -183,5 +156,4 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
     %we calculate the percentile
     specificURLLC.PL_URLLC_global = quantile(all_served_latencies, p);
     
-
 end
