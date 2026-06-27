@@ -42,4 +42,6 @@ visibilityData = Filter_constellation(simulationScenario, minimumElev);
 % COMPUTATION OF THE SATELLITAR LINK STATISTICS AND CHANNEL SIMULATION
 USER_SAT_evolution = channel_model(configChannel, visibilityData, groundEnv);
 USER_SAT_evolution.satelliteScenario=simulationScenario;
+USER_SAT_evolution.groundEnv = groundEnv;
+
 end
