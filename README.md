@@ -885,7 +885,6 @@ The project is based on academic and technical references related to LEO satelli
 * Mario Pellegrino Ambrosone
 * Santi La Spina
 * Aditya Gohite
-* Giovanni Natalizi
 
 ---
 
