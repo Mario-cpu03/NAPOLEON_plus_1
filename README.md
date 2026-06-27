@@ -889,6 +889,9 @@ The project is based on academic and technical references related to LEO satelli
 ---
 
 ## Academic Context
+
+This project was developed for the course:
+
 **Software Defined Communication Systems**
 MSc in Communications Engineering
 Politecnico di Torino
