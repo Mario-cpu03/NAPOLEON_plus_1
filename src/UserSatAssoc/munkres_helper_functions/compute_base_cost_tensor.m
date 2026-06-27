@@ -67,19 +67,22 @@ association_algorithm = configAssociation.association_algorithm;
 %       wildly over time steps (even if the absolute values are similar along time steps).
 %       Using fixed theoretical limits is guaranteed that the weights maintain a consistent meaning all over the entire simulation time.
 
+    % Internal convention: all distances are meters.
+    altitude_satellites_m    = configAssociation.altitude_satellites_m;
+    altitude_groundStation_m = configAssociation.altitude_groundStation_m;
 
-    %Theoretical System Constant
-    altitude_satellites = configAssociation.altitude_satellites;     % HARD CODED HERE. MUST BE TAKEN FRON THE STRUCT configConst
-    altitude_groundStation = configAssociation.altitude_groundStation;      % Here we are using the Mean Sea Level (MSL) assumption. This is the same reasoning applied in the thesis. 
-                                     % To be more accurate, we could define the altitude_groundStation as the mean altitude of the continental Europe.
-                                     % However, the difference in the results is negligible, since the gs altitude is order of magnitude lower than the
-                                     % satellites altitude.
-    
-    distance_min = altitude_satellites;     % Minimum possible distance (satellite at zenit)
-    %The maximum possible distance is the one of a satellite that has an elevation of 25 degree . 
-    %In orther to calculate this quantity, we use the function of the SatelliteToolbox
-    distance_max =  slantRangeCircularOrbit(minimumElev, altitude_satellites, altitude_groundStation);
-        
+    distance_min_m = altitude_satellites_m;
+
+    % slantRangeCircularOrbit expects km and returns km.
+    altitude_satellites_km    = altitude_satellites_m / 1e3;
+    altitude_groundStation_km = altitude_groundStation_m / 1e3;
+
+    distance_max_km = slantRangeCircularOrbit( ...
+    minimumElev, ...
+    altitude_satellites_km, ...
+    altitude_groundStation_km);
+
+    distance_max_m = distance_max_km * 1e3;
     rate_min = 0;            % Minimum possible rate (link lost)
     %The maximum possible rate is the one of the closest possible satellite (540e3m at 90 degree) with no fading effects. 
     %To calculate the maximum SNR possible WE NEED the cconfigAssociation
@@ -92,29 +95,37 @@ association_algorithm = configAssociation.association_algorithm;
     channel_bandwidth =configAssociation.channel_bandwidth;
     
     c = 3e8; lambda = c/carrierFrequency;
-    fsplGainLinear_max = (lambda / (4*pi*distance_min))^2;
+    fsplGainLinear_max = (lambda / (4*pi*distance_min_m))^2;
     snr_max=(P_sat_lin * G_sat_lin * G_u_lin * fsplGainLinear_max) / N_0;
     
     rate_max = channel_bandwidth * log2(1 + snr_max);
     
     %For the distance: the higher is the distance, the higher is the cost. 
-    cost_distance = (distanceTensor - distance_min) ./ (distance_max - distance_min);
-    
+    cost_distance = (distanceTensor - distance_min_m) ./ ...
+                (distance_max_m - distance_min_m);
+
     %For the rate: the higher is the rate, the lower must be the cost.
     cost_rate = 1 - ((rateTensor - rate_min)) ./ ((rate_max - rate_min)); 
-    
+
+     % Normalize the base cost to ensure values are within [0, 1]
+    cost_distance = min(max(cost_distance, 0), 1);
+    cost_rate = min(max(cost_rate, 0), 1);
     
     %Weight definition. All this weight must be tuned by trial and error.
     switch string (association_algorithm)
         case "URLLC"
             weight_distance = 0.8;      %To give priority to the minimum latency
-            weight_handover = 0.2;      %To consider handover frequency
+            DeltaTau_switch_s= configAssociation.URLLC_DeltaTau_switch_s;
             weight_rate = 0.0;          %Not taking into account rate
+            weight_handover = weight_distance * ...
+                  (c * DeltaTau_switch_s) / ...
+                  (distance_max_m - distance_min_m);
     
         case "eMBB"
             weight_distance = 0.0;      %Not taking into account latency
-            weight_handover = 0.2;      %High penalty to handover frequency
+            DeltaR_switch_bps = configAssociation.eMBB_DeltaR_switch_bps;
             weight_rate = 0.8;          %Maximum priority to the rate
+            weight_handover = weight_rate * DeltaR_switch_bps / rate_max;%High penalty to handover frequency 
     
        %Is it possible to define other vaues for the weights that are given by the final user. That values must be given as an input for this function.
     end

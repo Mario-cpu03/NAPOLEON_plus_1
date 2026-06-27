@@ -61,7 +61,7 @@
 
 function [KPI_results]=main_KPI_function (USER_SAT_association, configKPI)
 
-    addpath('KPIs/KPI_helper_functions/'); %helper function
+    %addpath('KPIs/KPI_helper_functions/'); %helper function
 
     % KPIs GENERAL
     KPI_results.generalKPIs = general_KPIS(USER_SAT_association, configKPI);

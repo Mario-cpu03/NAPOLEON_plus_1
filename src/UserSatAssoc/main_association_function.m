@@ -24,22 +24,29 @@
 %           Furthermore, the output data structure should contains all the data required for the KPI module. 
 %           1. USER_SAT_association : Data Structure containing metadata and
 %           tensor quantities required by the KPI module:
-%                   (i)     associationTensor:tensor [U x S x T] containing the
-%                           association between a user and a satellite for every time istant (boolean) 
-%                   (ii)    SNRtensor : tensor [U x S x T] containing the
-%                           linear SNR for every association
-%                   (iii)   rateTensor : tensor [U x S x T] containing the
-%                           achievable rate [bit/s] for every association
-%                   (iv)    distanceTensor : tensor [U x S x T] containing
-%                           slant distance [m] for every association. Propagation latency can be
-%                           computed later from this quantity as d/c
-%                   (v) OTHERS TO BE DEFINED. THAT WILL BE DEFINED BASED ON
-%                       THE KPI FUNCTION THAT WILL BE IMPLEMENTED
-
+%                   (i) assignedSatIdx, matrix of association per time instant
+%                   (ii) SNR_lin, matrix of linear SNR per association
+%                   (iii) rate_bps, matrix of obtained rate per
+%                   association in bit per second. 
+%                   (iv) distance_m, matrix of distance in meters, per
+%                   association
+%                   (v) latency_s, matrix of latency per association
+%                   (vi) handoverEvent, matrix of booleans per association
+%                   describing the handover events (1 = handover, 0 = no-handover)
+%                   (vii) servedMask, debugging purposes matrix mask (boolean) to evaluate
+%                   actual service rates
+%                   (viii) numUsers
+%                   (ix) numSats
+%                   (x) numTimeSteps
+%                   (xi) association_algorithm, kind of assoc algo
+%                   (xii) timeVec
+%                   (xiii) totalHandoversPerUser, totalHandoversSystem,
+%                   servedRatioPerUser, and servedRatioSystem; control
+%                   informations for debugging purposes
 
 function [USER_SAT_association]=main_association_function(USER_SAT_evolution, configAssociation)
 
-    addpath('UserSatAssoc/munkres_helper_functions/'); %helper functions for the construction of the weights matrix    
+    %addpath('UserSatAssoc/munkres_helper_functions/'); %helper functions for the construction of the weights matrix    
 
     %Here we construct the weight matrix. Since it will be computational costly to buit it time step per time step, here we build a cost tensor without taking into account the handover penalty.  
     %The parameter that models the handover penalty will be give as output of the function. That will be consider when we call the Munkres time instant per time instant. 
@@ -52,7 +59,7 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
         
     [U, S, T] = size(base_cost_tensor);
     
-    G=configAssociation.G;                   % max number of possible connections per satellite. HARD CODED HERE. SHOULD BE PASSED AS AN INPUT FOR THE FUNCTION
+    G=configAssociation.G;                   % max number of possible connections per satellite
       
     %%OUTPUT INIT VIA MATRIX APPROACH
     USER_SAT_association.assignedSatIdx = NaN(U, T);
@@ -118,13 +125,10 @@ function [USER_SAT_association]=main_association_function(USER_SAT_evolution, co
         %square_cost_matrix. This would be useless, but it is better to
         %check. 
         if any(valid_users)
-            % Troviamo le coordinate (Riga, Colonna) solo per gli utenti attualmente 'true'
             idx_cost = sub2ind(size(expanded_cost_matrix), find(valid_users), virt_sat_idx(valid_users));
             
-            % Troviamo quali di queste connessioni sono fisicamente impossibili (Inf)
             is_inf = expanded_cost_matrix(idx_cost) == Inf;
             
-            % Selezioniamo gli indici degli utenti validi e li forziamo a 'false' se il costo è Inf
             valid_users_indices = find(valid_users);
             valid_users(valid_users_indices(is_inf)) = false; 
         end

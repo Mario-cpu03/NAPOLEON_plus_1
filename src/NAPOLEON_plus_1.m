@@ -52,7 +52,8 @@ mode = "forecast"; %mode = "ideal";
 %
 %   (ii) eMBB-based algorithm, for a maximum throughput, minimum HO
 %   algorithm.
-association_algorithm = "eMBB"; % association_algorithm = "URLLC"
+%association_algorithm = "eMBB"; 
+association_algorithm = "URLLC";
 
 
 %%%%%% ------ CONFIGURATION DATA STRUCTURES ----- %%%%%%
@@ -118,9 +119,11 @@ configAssociation = struct( ...
     'channel_bandwidth',configChannel.channel_bandwidth, ...
     'N_0', configChannel.N_0, ...
     'minimumElev', minimumElev, ...
-    'altitude_satellites', configConst.altitude, ...
-    'altitude_groundStation', 0, ... %we assume sea-level for simplicity
-    'G', 2); % capacity constraint for load balancing on the satellites
+    'altitude_satellites_m', configConst.altitude*1e3, ...
+    'altitude_groundStation_m', 0, ... %we assume sea-level for simplicity
+    'G', 2, ...% capacity constraint for load balancing on the satellites
+    'URLLC_DeltaTau_switch_s', 1.00e-3, ...
+    'eMBB_DeltaR_switch_bps', 2e6); %% TRYING TO FIX HO STRANGE THINGS
 
 
 %  CONFIG kpi parameters and thresholds 
@@ -132,7 +135,7 @@ URLLC = struct ( ...
         'time_window', 6); %approximately half pass of a satellite, given that in our domain a satellite is visible for approx 4 minutes, so 120s/20s = 6 samples.
 eMBB = struct ( ...
         'rateMin_eMBB',50e6, ... % as defined by 3rd Generation Partnership Project Technical Specification Group Radio Access Network; Study on New Radio (NR) to support non-terrestrial networks, Section 4.3, page 16, the minimum downlink rate is 50Mbps
-        'handoverMax_eMBB', 2, ... %we admit at most 2 HOs every 4minutes-ish, so that the average is APPROXIMATELY 8e-3 HO/s, more permissive than the URLLC 
+        'handoverMax_eMBB', 4, ... %we admit at most 4 HOs every 4minutes-ish, so that the average is APPROXIMATELY 8e-3 HO/s, more permissive than the URLLC 
         'time_window',13, ... %approximately a whole pass of a satellite is 4.4min so the nearest integer is 260s, which corresponds to 260s/20s = 13 samples
         'bandwidth_Hz',configChannel.channel_bandwidth);
 configKPI.URLLC=URLLC; configKPI.eMBB=eMBB;
