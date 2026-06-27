@@ -1,5 +1,4 @@
 function [assignment,cost] = munkres(costMat)
-tic
 % MUNKRES   Munkres (Hungarian) Algorithm for Linear Assignment Problem. 
 %
 % [ASSIGN,COST] = munkres(COSTMAT) returns the optimal column indices,
@@ -190,7 +189,6 @@ pass = assignment(assignment>0);
 pass(~diag(validMat(assignment>0,pass))) = 0;
 assignment(assignment>0) = pass;
 cost = trace(costMat(assignment>0,assignment(assignment>0)));
-toc
 
 function [minval,rIdx,cIdx]=outerplus(M,x,y)
 ny=size(M,2);
