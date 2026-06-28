@@ -107,9 +107,9 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
     end
 
     %now we find the logical values that represent the three conditions
-    cond_latency  = latency_s <= latency_max_URLLC;
-    cond_SNR     = SNR_lin   >= SNRmin_URLLC;
-    cond_handover = handoverCount_timeWind <=handoverMax_URLLC;
+    cond_latency  = isfinite(latency_s) & (latency_s <= latency_max_URLLC);
+    cond_SNR      = isfinite(SNR_lin)   & (SNR_lin   >= SNRmin_URLLC);
+    cond_handover = handoverCount_timeWind <= handoverMax_URLLC;
 
     %now we check if the associations (for each time step) respect the conditions. We use
     %servdeMask to check is that user is actually served (this is just a
@@ -130,18 +130,24 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
 
 
     %TEMPORAL PERCENTILE
-    PL_URLLC_temporal = zeros(1, numTimeSteps);    
+    PL_URLLC_temporal = NaN(1, numTimeSteps);    
+
     for t = 1:numTimeSteps
     
         % first we have to find which users are served at time step t, and take
-        % its latencies
+        % its finite latencies
         users_served_at_t = servedMask(:, t);           
         latency_at_t = latency_s(:, t);                   
-        served_latencies_t = latency_at_t(users_served_at_t);   
+
+        served_latencies_t = latency_at_t(users_served_at_t);
+        served_latencies_t = served_latencies_t(isfinite(served_latencies_t));
     
         %given the latencies, we can compute percentile   
-        PL_URLLC_temporal(t) = quantile(served_latencies_t, p);
+        if ~isempty(served_latencies_t)
+            PL_URLLC_temporal(t) = quantile(served_latencies_t, p);
+        end
     end
+
     specificURLLC.PL_URLLC_temporal = PL_URLLC_temporal;
 
 
@@ -151,9 +157,15 @@ function [specificURLLC]=URLLC_KPIs(USER_SAT_association, configKPI)
     %for each time step)
     latency_all_samples = latency_s(:);    
     served_all_samples  = servedMask(:);   
-    all_served_latencies = latency_all_samples(served_all_samples);  
+
+    all_served_latencies = latency_all_samples(served_all_samples);
+    all_served_latencies = all_served_latencies(isfinite(all_served_latencies));
     
     %we calculate the percentile
-    specificURLLC.PL_URLLC_global = quantile(all_served_latencies, p);
+    if ~isempty(all_served_latencies)
+        specificURLLC.PL_URLLC_global = quantile(all_served_latencies, p);
+    else
+        specificURLLC.PL_URLLC_global = NaN;
+    end
     
 end
