@@ -75,8 +75,8 @@ grid(ax, "on");
 switch plotName
 
     case "scenarioDistribution"
-
-        plotScenarioDistribution(ax, SCENARIO);
+    
+        plotUserScenarioDistribution(SCENARIO.satelliteScenario ,SCENARIO.configAoI,"Axes", ax);
 
     case "totalHandoversEvolution"
 
@@ -412,48 +412,5 @@ if userIndex < 1 || userIndex > numUsers || userIndex ~= round(userIndex)
     error("plotNAPOLEONKPI:InvalidUserIndex", ...
         "UserIndex must be an integer between 1 and %d.", numUsers);
 end
-
-end
-
-function plotScenarioDistribution(ax, SCENARIO)
-
-if exist("buildScenarioPlotData", "file") ~= 2
-    error("plotNAPOLEONKPI:MissingScenarioHelper", ...
-        "buildScenarioPlotData.m was not found on the MATLAB path.");
-end
-
-scenarioPlotData = buildScenarioPlotData(SCENARIO);
-
-userLon = scenarioPlotData.userLon(:);
-userLat = scenarioPlotData.userLat(:);
-
-if isfield(SCENARIO, "USER_SAT_evolution") && ...
-        isfield(SCENARIO.USER_SAT_evolution, "groundEnv")
-
-    groundEnv = string(SCENARIO.USER_SAT_evolution.groundEnv(:));
-
-    if numel(groundEnv) ~= numel(userLat)
-        groundEnv = strings(numel(userLat), 1);
-        groundEnv(:) = "User";
-    end
-
-else
-    groundEnv = strings(numel(userLat), 1);
-    groundEnv(:) = "User";
-end
-
-envList = unique(groundEnv, "stable");
-
-for i = 1:numel(envList)
-    idx = groundEnv == envList(i);
-
-    scatter(ax, userLon(idx), userLat(idx), 36, "filled", ...
-        "DisplayName", envList(i));
-end
-
-xlabel(ax, "Longitude [deg]");
-ylabel(ax, "Latitude [deg]");
-title(ax, "Scenario Distribution");
-legend(ax, "Location", "best");
 
 end
