@@ -114,19 +114,18 @@ association_algorithm = configAssociation.association_algorithm;
     %Weight definition. All this weight must be tuned by trial and error.
     switch string (association_algorithm)
         case "URLLC"
-            weight_distance = 0.8;      %To give priority to the minimum latency
             DeltaTau_switch_s= configAssociation.URLLC_DeltaTau_switch_s;
-            weight_rate = 0.0;          %Not taking into account rate
+            weight_distance = (distance_max_m - distance_min_m)/((c * DeltaTau_switch_s)+(distance_max_m - distance_min_m));      %To give priority to the minimum latency
             weight_handover = weight_distance * ...
                   (c * DeltaTau_switch_s) / ...
                   (distance_max_m - distance_min_m);
+            weight_rate = 1-(weight_distance+weight_handover);          %Not taking into account rate
     
         case "eMBB"
-            weight_distance = 0.0;      %Not taking into account latency
             DeltaR_switch_bps = configAssociation.eMBB_DeltaR_switch_bps;
-            weight_rate = 0.8;          %Maximum priority to the rate
+            weight_rate = rate_max/(DeltaR_switch_bps+rate_max);          %Maximum priority to the rate
             weight_handover = weight_rate * DeltaR_switch_bps / rate_max;%High penalty to handover frequency 
-    
+            weight_distance = 1-(weight_handover+weight_rate);      %Not taking into account latency    
        %Is it possible to define other vaues for the weights that are given by the final user. That values must be given as an input for this function.
     end
     

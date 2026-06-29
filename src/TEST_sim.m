@@ -6,7 +6,7 @@
 %   2. Run Association    -> run_NAPOLEON_simulation(SCENARIO, params)
 %   3. Export Results     -> future GUI/export function
 
-close all;
+%close all;
 clc;
 clear;
 

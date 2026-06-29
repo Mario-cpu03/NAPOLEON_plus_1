@@ -87,6 +87,12 @@ function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
     time_window      = configKPI.eMBB.time_window;          
     bandwidth_Hz     = configKPI.eMBB.bandwidth_Hz;        
 
+    % NaN management for rate-based aggregate KPIs.
+    % Unserved or numerically invalid users contribute zero delivered rate.
+    rate_eff_bps = rate_bps;
+    rate_eff_bps(~servedMask) = 0;
+    rate_eff_bps(~isfinite(rate_eff_bps)) = 0;    
+
 
 %% eMBB Temporal Compliance Ratio
 
@@ -103,7 +109,7 @@ function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
 
     %now we find the logical values that represent the two conditions: 1 if
     %that condition is satisfied, 0 otherwise.
-    cond_rate     = rate_bps             >= rateMin_eMBB;     
+    cond_rate     = isfinite(rate_bps) & (rate_bps >= rateMin_eMBB);         
     cond_handover = handoverCount_timeWind <= handoverMax_eMBB; 
 
     
@@ -120,7 +126,7 @@ function [specificeMBB] = eMBB_KPIs(USER_SAT_association, configKPI)
     %% System Spectral Efficiency
 
     %first we sum, for aech time step, the rates of all the users
-    sum_rate_t = sum(rate_bps, 1);       
+    sum_rate_t = sum(rate_eff_bps, 1);       
 
     %then we calculate the spectral efficiency
     specificeMBB.aggregateSpecEff = sum_rate_t/ bandwidth_Hz;   

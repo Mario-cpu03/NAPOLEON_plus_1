@@ -81,12 +81,16 @@ function [generalKPIs] = general_KPIS(USER_SAT_association, configKPI)
 
 
     %AVERAGE USER SNR 
-
     % Convert selected-link SNR to dB.
-    SNR_dB = 10 * log10(SNR_lin);
+    % SNR is only defined for served, finite, strictly positive links.
+    SNR_eff_lin = SNR_lin;
+    SNR_eff_lin(~servedMask) = NaN;
+    SNR_eff_lin(~isfinite(SNR_eff_lin)) = NaN;
+    SNR_eff_lin(SNR_eff_lin <= 0) = NaN;
+
+    SNR_dB = 10 * log10(SNR_eff_lin);
 
     % SNR is only defined for served links.
-    SNR_dB(~servedMask) = NaN;
     SNR_dB(~isfinite(SNR_dB)) = NaN;
 
     % Average SNR received by each user over served samples.
@@ -107,7 +111,15 @@ function [generalKPIs] = general_KPIS(USER_SAT_association, configKPI)
     [rateCDF_x_Mbps, rateCDF_y] = empirical_cdf(avgRatePerUser_Mbps);
     [rateCDF_x_bpsHz, ~] = empirical_cdf(avgRatePerUser_bpsHz);
 
-    [SNRCDF_x_dB, SNRCDF_y] = empirical_cdf(avgSNRPerUser_dB);
+    % SNR CDF is computed only over users with at least one valid served SNR.
+    validSNRUsers = isfinite(avgSNRPerUser_dB);
+
+    if any(validSNRUsers)
+        [SNRCDF_x_dB, SNRCDF_y] = empirical_cdf(avgSNRPerUser_dB(validSNRUsers));
+    else
+        SNRCDF_x_dB = [];
+        SNRCDF_y = [];
+    end
 
     
     %USER-LEVEL SERVICE CONTINUITY
