@@ -14,7 +14,7 @@ params = default_NAPOLEON_params();
 
 %% Optional quick testing modifications
 params.numUsers = 100;
-params.CSImode = "ideal";
+params.CSImode = "forecast";
 params.associationAlgorithm = "eMBB";
 
 %% Phase 1: generate scenario / ChannelModel
