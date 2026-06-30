@@ -1223,7 +1223,7 @@ end
             img.ImageSource = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'images', 'Background_image.jpeg');
             img.HorizontalAlignment = 'center';
             img.VerticalAlignment = 'center';
-            img.ScaleMethod = 'fill';
+            img.ScaleMethod = 'fit';
             
             % NOTA: di base usa 'fit' (mantiene le proporzioni). 
             % Se vuoi che l'immagine tagli un po' i bordi pur di riempire 
