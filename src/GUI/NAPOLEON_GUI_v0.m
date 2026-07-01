@@ -1041,6 +1041,17 @@ end
             % 2. Nascondiamo e puliamo la mappa 3D (che viveva in ax)
             ax.Visible = 'off';
             cla(ax);
+
+            % --- 2.5 SALVIAMO LO STATO DEL TAB 'USER DIST.' ---
+            wasUserDistOpen = false;
+            if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
+                for k = 1:length(State.kpiTabGroup.Children)
+                    if strcmp(State.kpiTabGroup.Children(k).Title, 'User Dist.')
+                        wasUserDistOpen = true;
+                        break;
+                    end
+                end
+            end
             
             % 3. Se esisteva già un TabGroup di una simulazione precedente, distruggiamolo
             if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
@@ -1075,6 +1086,10 @@ end
             testoSegnaposto.Layout.Column = 1;
             % --- FINE NUOVO CODICE ---
 
+             if wasUserDistOpen
+                handleKPIClick('User Dist.', "UserDistribution");
+            end
+
 
 
         elseif State.scenarioGenerated
@@ -1082,7 +1097,11 @@ end
 
              % 1. Prepariamo il contenitore per il grafico User Dist
             if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
+                % Disabilita il callback prima di cancellare i figli per evitare "Invalid or deleted object"
+                State.kpiTabGroup.SelectionChangedFcn = ''; 
                 delete(State.kpiTabGroup.Children); % Cancella solo i tab interni
+                State.kpiTabGroup.SelectionChangedFcn = @(src, event) updateFooterText(event.NewValue.Title);
+                
                 State.kpiTabs = struct();
                 State.kpiTabGroup.Visible = 'off';
             else
@@ -1450,21 +1469,39 @@ end
             State.params = State.defaultParams;
         end
         p = State.params.policy.URLLC;
-        d = modalWindow('URLLC Policy Tuning', C, [470 315 455 400]);
-
-        g = uigridlayout(d, [8 2]);
-        g.RowHeight = {42, 42, 42, 42, 42, 42, 12, 42};
+         d = modalWindow('URLLC Policy Tuning', C, [470 315 455 465]);
+        g = uigridlayout(d, [10 2]); % <- Passato da 8 a 10 righe
+         g.RowHeight = {50, 16, 42, 16, 42, 42, 42, 42, 12, 42}; % <- Inserite 2 righe da 20px
         g.ColumnWidth = {205, '1x'};
         g.Padding = [20 20 20 20];
         g.RowSpacing = 8;
         g.BackgroundColor = C.bg;
 
-        modalHeader(g, 'URLLC policy', 'Latency-constrained association controls', C, fontName);
+        testoInfo_URLLC = {
+            'TUNABLE PARAMETERS FOR URLLC:',
+            '',
+            '• Delta latency: Handover occurs only if',
+            '  the new satellite reduces latency by at least this amount.',
+            '• Max latency: The absolute maximum delay tolerated by the service.',
+            '• Min SNR: The minimum Signal-to-Noise Ratio required to guarantee',
+            '  ultra-high reliability.',
+            '• Time window: Number of slots used to evaluate strict KPIs.',
+            '• Max handovers: Strict limit on handovers within the window,',
+            '  as handovers cause unacceptable latency spikes.'
+        };
+
+        modalHeader(g, 'URLLC policy', 'Latency-constrained association controls', testoInfo_URLLC, C, fontName);       
+        % --- SEZIONE ASSOCIATION CONTROL ---
+        modalSectionLabel(g, 'Association Control', C, fontName);
         f1 = modalNumeric(g, 'Delta latency [s]', p.URLLC_DeltaTau_switch_s, C, fontName);
+        
+        % --- SEZIONE KPI CONTROL ---
+        modalSectionLabel(g, 'KPI Control', C, fontName);
         f2 = modalNumeric(g, 'Max latency [s]', p.latency_max_URLLC, C, fontName);
         f3 = modalNumeric(g, 'Min SNR [linear]', p.SNRmin_URLLC_lin, C, fontName);
         f4 = modalNumeric(g, 'Time window', p.time_window, C, fontName);
         f5 = modalNumeric(g, 'Max handovers', p.handoverMax_URLLC, C, fontName);
+        
         spacer(g, C.bg, fontName); spacer(g, C.bg, fontName);
 
         reset = flatButton(g, 'Default', C.cardAlt, C.text, fontName);
@@ -1484,10 +1521,10 @@ end
 
         function applyURLLC()
             if State.associationCompleted
-                msg = 'Il cambiamento dei parametri renderà necessario performare nuovamente l''associazione. Tutti i risultati attuali verranno eliminati. Vuoi procedere?';
-                scelta = uiconfirm(d, msg, 'Attenzione', 'Options', {'Procedi', 'Annulla'}, ...
+                msg = 'Changing the parameters will require performing the association again. All current results will be deleted. Do you want to proceed?';
+                scelta = uiconfirm(d, msg, 'Warning', 'Options', {'Proceed', 'Cancel'}, ...
                                    'DefaultOption', 2, 'CancelOption', 2, 'Icon', 'warning');
-                if strcmp(scelta, 'Annulla')
+                if strcmp(scelta, 'Cancel')
                     return; 
                 end
             end
@@ -1516,22 +1553,39 @@ end
             State.params = State.defaultParams;
         end
         p = State.params.policy.eMBB;
-        d = modalWindow('eMBB Policy Tuning', C, [470 335 455 360]);
+                d = modalWindow('eMBB Policy Tuning', C, [470 335 455 420]); % <- Altezza aumentata
 
-        g = uigridlayout(d, [7 2]);
-        g.RowHeight = {42, 42, 42, 42, 42, 12, 42};
+        g = uigridlayout(d, [9 2]); % <- Passato da 7 a 9 righe
+        g.RowHeight = {50, 16, 42, 16, 42, 42, 42, 12, 42};
         g.ColumnWidth = {205, '1x'};
         g.Padding = [20 20 20 20];
         g.RowSpacing = 8;
         g.BackgroundColor = C.bg;
 
-        modalHeader(g, 'eMBB policy', 'Throughput-constrained association controls', C, fontName);
+       testoInfo_eMBB = {
+            'TUNABLE PARAMETERS FOR eMBB:',
+            '',
+            '• Delta rate: A handover triggers only if',
+            '  the new satellite offers this much more throughput (prevents ping-pong).',
+            '• Min rate: The target minimum throughput required to satisfy the service.',
+            '• Time window: Number of slots used to evaluate stability and KPIs.',
+            '• Max handovers: Maximum allowed handovers within the time window',
+            '  to limit signaling overhead.'
+        };
+        
+        modalHeader(g, 'eMBB policy', 'Throughput-constrained association controls', testoInfo_eMBB, C, fontName);
+                               
+        % --- SEZIONE ASSOCIATION CONTROL ---
+        modalSectionLabel(g, 'Association Control', C, fontName);
         f1 = modalNumeric(g, 'Delta rate [bit/s]', p.eMBB_DeltaR_switch_bps, C, fontName);
+        
+        % --- SEZIONE KPI CONTROL ---
+        modalSectionLabel(g, 'KPI Control', C, fontName);
         f2 = modalNumeric(g, 'Min rate [bit/s]', p.rateMin_eMBB_bps, C, fontName);
         f3 = modalNumeric(g, 'Time window', p.time_window, C, fontName);
         f4 = modalNumeric(g, 'Max handovers', p.handoverMax_eMBB, C, fontName);
+        
         spacer(g, C.bg, fontName); spacer(g, C.bg, fontName);
-
         reset = flatButton(g, 'Default', C.cardAlt, C.text, fontName);
         apply = flatButton(g, 'Apply', C.blueSoft, C.accent, fontName);
 
@@ -1550,9 +1604,9 @@ end
         function applyEMBB()
             if State.associationCompleted
                 msg = 'Changing the parameters will require performing the association again. All current results will be deleted. Do you want to proceed?';
-                scelta = uiconfirm(d, msg, 'Attenzione', 'Options', {'Procedi', 'Annulla'}, ...
+                scelta = uiconfirm(d, msg, 'Warning', 'Options', {'Proceed', 'Cancel'}, ...
                                    'DefaultOption', 2, 'CancelOption', 2, 'Icon', 'warning');
-                if strcmp(scelta, 'Annulla')
+                if strcmp(scelta, 'Cancel')
                     return; 
                 end
             end
@@ -1790,27 +1844,27 @@ end
             tabGrid.BackgroundColor = [1 1 1];
             
             % Nuovo asse per il plot
-            ax = uiaxes(tabGrid);
-            ax.Color = [1 1 1];
-            ax.XColor = [0 0 0]; 
-            ax.YColor = [0 0 0]; 
-            ax.GridColor = [0.15 0.15 0.15]; 
-            ax.Box = 'off';
+            tabAx = uiaxes(tabGrid);
+            tabAx.Color = [1 1 1];
+            tabAx.XColor = [0 0 0]; 
+            tabAx.YColor = [0 0 0]; 
+            tabAx.GridColor = [0.15 0.15 0.15]; 
+            tabAx.Box = 'off';
             
             % Aggiorna subito il testo in basso per la nuova scheda
             updateDescLabel(thisTab);
             
             % Disegna il grafico
             try
-                plotNAPOLEONKPI(State.RESULTS, State.SCENARIO, plotType, 'UserIndex', uid, 'Axes', ax);
+                plotNAPOLEONKPI(State.RESULTS, State.SCENARIO, plotType, 'UserIndex', uid, 'Axes', tabAx);
                 % Forza i colori neri per un look pulito
-                ax.Title.Color = 'k'; 
-                if ~isempty(ax.Subtitle)
-                    ax.Subtitle.Color = 'k';
+                tabAx.Title.Color = 'k'; 
+                if ~isempty(tabAx.Subtitle)
+                    tabAx.Subtitle.Color = 'k';
                 end
-                ax.XLabel.Color = 'k'; 
-                ax.YLabel.Color = 'k'; 
-                ax.Box = 'off';
+                tabAx.XLabel.Color = 'k'; 
+                tabAx.YLabel.Color = 'k'; 
+                tabAx.Box = 'off';
             catch ME
                 uialert(d, sprintf('Error plotting user %d:\n%s', uid, ME.message), 'Error');
             end
@@ -2847,30 +2901,70 @@ function d = modalWindow(name, C, position)
         'WindowStyle', 'modal');
 end
 
-function modalHeader(parent, titleText, subText, C, fontName)
-    g = uigridlayout(parent, [2 1]);
+function modalHeader(parent, titleText, subText, infoText, C, fontName)
+    % Griglia a 2 colonne: la prima prende lo spazio che avanza ('1x'), la seconda 30px fissi
+    g = uigridlayout(parent, [2 2]);
     g.Layout.Row = 1;
     g.Layout.Column = [1 2];
-    g.RowHeight = {22, 18};
+    g.RowHeight = {30, 18};
+    g.ColumnWidth = {'1x', 30}; 
     g.Padding = [0 0 0 0];
     g.RowSpacing = 0;
     g.BackgroundColor = C.bg;
 
-    uilabel(g, ...
+    % Titolo Principale
+    tit = uilabel(g, ...
         'Text', titleText, ...
         'FontName', fontName, ...
-        'FontSize', 16, ...
+        'FontSize', 22, ...
         'FontWeight', 'bold', ...
         'FontColor', C.text, ...
         'BackgroundColor', C.bg);
+    tit.Layout.Row = 1;
+    tit.Layout.Column = 1;
 
-    uilabel(g, ...
+    % Sottotitolo
+    sub = uilabel(g, ...
         'Text', subText, ...
         'FontName', fontName, ...
         'FontSize', 10, ...
         'FontColor', C.muted, ...
         'BackgroundColor', C.bg);
+    sub.Layout.Row = 2;
+    sub.Layout.Column = [1 2]; % Il sottotitolo si espande su entrambe le colonne sotto
+
+    % IL BOTTONE "?" A DESTRA
+        % IL BOTTONE "?" A DESTRA
+    btn = uibutton(g, ...
+        'Text', '?', ...
+        'Tooltip', infoText, ...       
+        'FontName', fontName, ...
+        'FontSize', 16, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.accent, ...     
+        'BackgroundColor', C.bg);
+    btn.Layout.Row = 1;
+    btn.Layout.Column = 2;
 end
+
+
+% --- INCOLLA QUESTA NUOVA FUNZIONE QUI SOTTO ---
+function modalSectionLabel(parent, txt, C, fontName)
+    lbl = uilabel(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.accent, ...
+        'VerticalAlignment', 'bottom',...
+        'BackgroundColor', C.bg);
+    lbl.Layout.Column = [1 2]; % Fagli occupare tutta la larghezza
+end
+
+
+
+
+
 
 function field = modalNumeric(parent, label, value, C, fontName)
     uilabel(parent, ...
