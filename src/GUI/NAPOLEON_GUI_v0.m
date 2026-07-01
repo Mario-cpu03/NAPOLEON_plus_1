@@ -286,12 +286,25 @@ ana.Padding = [18 18 18 18];
 ana.RowSpacing = 6;
 ana.BackgroundColor = C.bg;
 
-uilabel(ana, ...
+hdr1 = uigridlayout(ana, [1 2]);
+hdr1.RowHeight = {'1x'};
+hdr1.ColumnWidth = {'1x', 30}; % 30 pixel riservati al bottone a destra
+hdr1.Padding = [0 0 0 0];
+hdr1.BackgroundColor = C.bg;
+uilabel(hdr1, ...
     'Text', 'KPI CONTROLS', ...
     'FontName', fontName, ...
     'FontSize', 22, ...
     'FontWeight', 'bold', ...
     'FontColor', C.text, ...
+    'BackgroundColor', C.bg);
+infoBtn1 = uibutton(hdr1, ...
+    'Text', '?', ...
+    'Tooltip', 'Click on any button below to generate and visualize the corresponding KPI plot.', ...
+    'FontName', fontName, ...
+    'FontSize', 16, ...
+    'FontWeight', 'bold', ...
+    'FontColor', C.accent, ...
     'BackgroundColor', C.bg);
 
 kpiGrid = uigridlayout(ana, [9, 2]);
@@ -300,7 +313,7 @@ kpiGrid.Layout.Column = 1;
 kpiGrid.RowSpacing = 8;
 kpiGrid.ColumnSpacing = 8;
 kpiGrid.BackgroundColor = C.bg;
-kpiGrid.RowHeight = {38, 38, 38, 38, 38,40, 48, 'fit', '1x'};
+kpiGrid.RowHeight = {38, 38, 38, 38, 38,40, 35, 'fit', '1x'};
 kpiGrid.ColumnWidth = {'1x', '1x'};
 
 % 8 BOTTONI
@@ -335,16 +348,28 @@ inspectorBtn.ButtonPushedFcn = @openUserInspector;
 
 
 % TITOLO KPI SUMMARY
-lblSummary = uilabel(kpiGrid, ...
+hdr2 = uigridlayout(kpiGrid, [1 2]);
+hdr2.Layout.Row = 7;
+hdr2.Layout.Column = [1 2];
+hdr2.RowHeight = {'1x'};
+hdr2.ColumnWidth = {'1x', 30}; % 30 pixel riservati al bottone a destra
+hdr2.Padding = [0 0 0 0];
+hdr2.BackgroundColor = C.bg;
+lblSummary = uilabel(hdr2, ...
     'Text', 'KPI SUMMARY', ...
     'FontName', fontName, ...
     'FontSize', 22, ...
     'FontWeight', 'bold', ...
     'FontColor', C.text, ...
-    'HorizontalAlignment', 'left', ...
     'BackgroundColor', C.bg);
-lblSummary.Layout.Row = 7;
-lblSummary.Layout.Column = [1 2];
+infoBtn2 = uibutton(hdr2, ...
+    'Text', '?', ...
+    'Tooltip', 'This table summarizes the main general KPIs computed over the entire simulation.', ...
+    'FontName', fontName, ...
+    'FontSize', 16, ...
+    'FontWeight', 'bold', ...
+    'FontColor', C.accent, ...
+    'BackgroundColor', C.bg);
 
 % TABELLA KPI
 % TABELLA KPI% TABELLA KPI
@@ -1744,16 +1769,45 @@ end
         mainGrid.BackgroundColor = C.bg;
         
         % 1. INTESTAZIONE INGRANDITA
-        headerGrid = uigridlayout(mainGrid, [2 1]);
+                % 1. INTESTAZIONE INGRANDITA CON BOTTONE INFO
+        headerGrid = uigridlayout(mainGrid, [2 2]); % Passiamo a 2 colonne
         headerGrid.Layout.Row = 1;
         headerGrid.RowHeight = {30, 20};
+        headerGrid.ColumnWidth = {'1x', 30}; % Riserviamo 30 pixel a destra
         headerGrid.Padding = [0 0 0 0];
         headerGrid.RowSpacing = 2;
         headerGrid.BackgroundColor = C.bg;
         
-        uilabel(headerGrid, 'Text', 'User Inspector', 'FontName', fontName, 'FontSize', 24, 'FontWeight', 'bold', 'FontColor', C.text);
-        uilabel(headerGrid, 'Text', 'Inspect the evolution of specific KPIs for a single user', 'FontName', fontName, 'FontSize', 13, 'FontColor', C.muted);
+        tit = uilabel(headerGrid, 'Text', 'User Inspector', 'FontName', fontName, 'FontSize', 24, 'FontWeight', 'bold', 'FontColor', C.text);
+        tit.Layout.Row = 1; 
+        tit.Layout.Column = 1;
         
+        sub = uilabel(headerGrid, 'Text', 'Inspect the evolution of specific KPIs for a single user', 'FontName', fontName, 'FontSize', 13, 'FontColor', C.muted);
+        sub.Layout.Row = 2; 
+        sub.Layout.Column = [1 2];
+        
+        % Testo di spiegazione (Tooltip)
+        infoTextUser = {
+            'USER PLOTS EXPLANATION:', 
+            '', 
+            '• Rate Evolution: Shows how the data rate assigned to this user changes over time.', 
+            '• Service State Evolution: Shows if the user is served for each time step.',
+            '     The curve il blue if the user is served during the whole simulation, red if the user',
+            '     has some time windows without service. The time step without service are highlighted in grey.'
+
+        };
+        
+        % Bottone Info a destra
+        infoBtn = uibutton(headerGrid, ...
+            'Text', '?', ...
+            'Tooltip', infoTextUser, ...
+            'FontName', fontName, ...
+            'FontSize', 18, ...
+            'FontWeight', 'bold', ...
+            'FontColor', C.accent, ...
+            'BackgroundColor', C.bg);
+        infoBtn.Layout.Row = 1; 
+        infoBtn.Layout.Column = 2;
         % 2. RIGA DEI CONTROLLI
         ctrlGrid = uigridlayout(mainGrid, [1 5]);
         ctrlGrid.Layout.Row = 2;
@@ -2635,14 +2689,39 @@ function data = kpiTableData(RESULTS, params)
                 end
             end
 
-            if ~isempty(params) && isfield(params, 'associationAlgorithm') && ...
+            % 1. Mean Total Handovers (valido per qualsiasi policy)
+            if isfield(G, 'serviceContinuity') && isfield(G.serviceContinuity, 'userHandoverTime')
+                totalHO = sum(G.serviceContinuity.userHandoverTime, 1);
+                v = mean(totalHO); 
+                rows(end+1,:) = {'Mean Total Handovers', sprintf('%.2f', v), 'HO/step'};
+                has_data = true;
+            end
+            
+            % 2. Mean eMBB TCR (visibile solo se la policy è eMBB)
+            if ~isempty(params) && isfield(params, 'associationAlgorithm') && strcmpi(string(params.associationAlgorithm), 'eMBB')
+                if isfield(K, 'specificeMBB') && isfield(K.specificeMBB, 'TCR_eMBB')
+                    v = mean(K.specificeMBB.TCR_eMBB, 'omitnan') * 100; % In %
+                    rows(end+1,:) = {'Mean eMBB TCR', sprintf('%.2f', v), '%'};
+                    has_data = true;
+                end
+            end
+
+               if ~isempty(params) && isfield(params, 'associationAlgorithm') && ...
                strcmpi(string(params.associationAlgorithm), 'URLLC')
+               
                 if isfield(K, 'specificURLLC') && isfield(K.specificURLLC, 'PL_URLLC_global')
                     v = K.specificURLLC.PL_URLLC_global;
                     if isnumeric(v) && isscalar(v)
                         rows(end+1,:) = {'URLLC 90th Percentile', sprintf('%.4f', v), 'ms'};
                         has_data = true;
                     end
+                end
+
+                % 3. Mean URLLC TCR
+                if isfield(K, 'specificURLLC') && isfield(K.specificURLLC, 'TCR_URLLC')
+                    v = mean(K.specificURLLC.TCR_URLLC, 'omitnan') * 100;
+                    rows(end+1,:) = {'Mean URLLC TCR', sprintf('%.2f', v), '%'};
+                    has_data = true;
                 end
             end
 
