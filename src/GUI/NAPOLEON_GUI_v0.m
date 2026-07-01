@@ -1,0 +1,2912 @@
+function NAPOLEON_GUI_v0()
+%NAPOLEON_GUI_V1 Professional GUI for NAPOLEON+.
+%
+% Visual concept:
+%   - dark vertical command rail, like professional operations software
+%   - light aerospace workspace, inspired by STK / network operation consoles
+%   - no repeated information blocks
+%   - configuration remains table-like and compact
+%   - same computational logic as the previous GUI versions
+%
+% Workflow:
+%   1) edit mission inputs
+%   2) launch scenario, viewer, association and export from the header
+%   3) monitor elapsed runtime from the live header bar
+%   4) inspect KPI summary, service compliance, and violations
+
+    close all;
+
+    %% Paths
+    guiDir = fileparts(mfilename('fullpath'));
+    srcDir = fileparts(guiDir);
+
+    addpath(srcDir);
+    addpath(genpath(fullfile(srcDir, 'ChannelModel')));
+    addpath(genpath(fullfile(srcDir, 'UserSatAssoc')));
+    addpath(genpath(fullfile(srcDir, 'KPIs')));
+    addpath(fullfile(srcDir, 'GUI'));
+
+    %% State
+    State = struct();
+    State.defaultParams = default_NAPOLEON_params();
+    State.params = [];
+    State.SCENARIO = [];
+    State.scenarioPlotData = [];
+    State.RESULTS = [];
+    State.viewer = [];
+    State.scenarioGenerated = false;
+    State.associationCompleted = false;
+    State.lastRunStarted = [];
+    State.lastRunFinished = [];
+    State.runTimer = [];
+    State.runPhase = "";
+    State.kpiTabGroup = [];   
+    State.kpiTabs = struct();
+
+    %% Theme
+    C = atlasTheme();
+    fontName = preferredFont();
+
+    %% Figure
+    fig = uifigure( ...
+        'Name', 'NAPOLEON+ Atlas Console v1', ...
+        'Color', C.bg);
+
+    fig.CloseRequestFcn = @onClose;
+    fig.WindowState = 'maximized';
+
+    root = uigridlayout(fig, [1 2]);
+    root.ColumnWidth = {350, '1x'};
+    root.RowHeight = {'1x'};
+    root.Padding = [0 0 0 0];
+    root.ColumnSpacing = 0;
+    root.BackgroundColor = C.bg;
+
+    %% LEFT COMMAND RAIL
+    rail = uipanel(root, ...
+        'BackgroundColor', C.rail, ...
+        'BorderType', 'none');
+    rail.Layout.Column = 1;
+    rail.Scrollable = 'on';
+
+    railGrid = uigridlayout(rail, [5 1]);
+    railGrid.RowHeight = {120, 18, 320, 18, 340};
+    railGrid.Padding = [18 22 18 18];
+    railGrid.RowSpacing = 5;
+    railGrid.BackgroundColor = C.rail;
+
+    brand = uigridlayout(railGrid, [3 1]);
+    brand.RowHeight = {46, 22, 20};
+    brand.Padding = [0 8 0 0];
+    brand.RowSpacing = 5;
+    brand.BackgroundColor = C.rail;
+
+    uilabel(brand, ...
+        'Text', 'NAPOLEON+', ...
+        'FontName', fontName, ...
+        'FontSize', 36, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.railText, ...
+        'BackgroundColor', C.rail);
+
+    uilabel(brand, ...
+        'Text', 'ATLAS CONSOLE', ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.accentRail, ...
+        'BackgroundColor', C.rail);
+
+    uilabel(brand, ...
+        'Text', 'LEO association workflow', ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontColor', C.railMuted, ...
+        'BackgroundColor', C.rail);
+
+    railDivider(railGrid, C, fontName, 'CONFIGURATION TABLE');
+
+    setupTable = uitable(railGrid, ...
+    'Data', referenceSetupData([]), ...
+    'ColumnName', {'Group', 'Parameter', 'Value', 'Unit'}, ...
+    'RowName', [], ... % FONDAMENTALE: [] elimina del tutto la colonna invisibile a sinistra
+    'ColumnWidth', {60, '1x', 70, 40}, ... % '1x' fa riempire lo spazio esattamente, niente slider orizzontale!
+    'FontName', fontName, ...
+    'FontSize', 10, ... % Leggermente ingrandito per una lettura più chiara
+    'BackgroundColor', [C.railStatusBg; C.railButton], ...
+    'ForegroundColor', C.railText, ...
+    'ColumnSortable', [false false false false]); % Rimuove le frecce di ordinamento dalle intestazioni
+
+    % STILIZZAZIONE AVANZATA (uistyle) PER ALLINEAMENTI ELEGANTI
+    try
+        % 1. Grassetto per la colonna "Group" (opzionale, ma aiuta la leggibilità)
+        styleGroup = uistyle('FontWeight', 'bold');
+        addStyle(setupTable, styleGroup, 'column', 1);
+    
+        % 2. Allineamento centrato per "Value" e "Unit"
+        styleCenter = uistyle('HorizontalAlignment', 'center');
+        addStyle(setupTable, styleCenter, 'column', [3 4]);
+    catch
+        % Fallback per versioni di MATLAB precedenti che non supportano uistyle
+    end
+
+    railDivider(railGrid, C, fontName, 'PARAMETER SETUP');
+
+  % --- CONTENITORE PER INPUT E BOTTONI (STESSA LARGHEZZA TABELLA) ---
+    controlsGrid = uigridlayout(railGrid, [6 1]); 
+    controlsGrid.Padding = [0 0 0 0];
+    controlsGrid.RowSpacing = 8;
+    controlsGrid.ColumnWidth = {'1x'}; % Il segreto è qui: '1x' occupa il 100% della larghezza!
+    controlsGrid.RowHeight = {36, 36, 36, 36, 36, 36, 36};
+    controlsGrid.BackgroundColor = C.rail;
+
+    % 1. Box di Input (si espandono su tutta la larghezza della barra)
+    numUsersField = railInputRowText(controlsGrid, 'Terminals', '', C, fontName);
+    csiDrop       = railInputRowDrop(controlsGrid, 'CSI mode', {'--', 'forecast', 'ideal'}, '--', C, fontName);
+    seedField     = railInputRowText(controlsGrid, 'Seed', '', C, fontName);
+    algDrop       = railInputRowDrop(controlsGrid, 'Policy', {'--', 'URLLC', 'eMBB'}, '--', C, fontName);
+
+    % 3. Bottoni (si espandono su tutta la larghezza allineandosi alla tabella)
+    tuneBtn = flatButton(controlsGrid, '⚙️ Tune Policy', C.railButton, C.accentRail, fontName);
+    
+    bottomButtonsGrid = uigridlayout(controlsGrid, [1 2]);
+    bottomButtonsGrid.Padding = [0 0 0 0];
+    bottomButtonsGrid.ColumnSpacing = 8;          % Spazio tra i due bottoni affiancati
+    bottomButtonsGrid.ColumnWidth = {'1x', '1x'};  % Ogni bottone occupa esattamente il 50%
+    bottomButtonsGrid.BackgroundColor = C.rail;
+
+    % NOTA: i due bottoni ora sono figli di 'bottomButtonsGrid' invece che di 'controlsGrid'
+    defaultBtn = flatButton(bottomButtonsGrid, 'Default values', C.accentRail, C.rail, fontName);
+    resetWorkspaceBtn = flatButton(bottomButtonsGrid, 'Reset workspace', C.railButton, C.railText, fontName);
+    
+    %% MAIN WORKSPACE
+    workspace = uigridlayout(root, [2 1]);
+    workspace.Layout.Column = 2;
+    workspace.RowHeight = {82, '1x'};
+    workspace.Padding = [20 18 20 18];
+    workspace.RowSpacing = 14;
+    workspace.BackgroundColor = C.bg;
+
+    %% TOP RIBBON
+    ribbon = uipanel(workspace, ...
+        'BackgroundColor', C.card, ...
+        'BorderType', 'none');
+    ribbon.Layout.Row = 1;
+
+    ribGrid = uigridlayout(ribbon, [1 5]);
+    ribGrid.ColumnWidth = {'1x', 110,110,110 420};
+    ribGrid.Padding = [22 14 22 14];
+    ribGrid.ColumnSpacing = 10;
+    ribGrid.BackgroundColor = C.card;
+
+        titleBox = uigridlayout(ribGrid, [1 2]); % 2 colonne
+    titleBox.RowHeight = {'1x'};
+    titleBox.ColumnWidth = {'fit', 40}; % Spazio perfetto per il bottoncino
+    titleBox.Padding = [0 0 0 0];
+    titleBox.RowSpacing = 0;
+    titleBox.BackgroundColor = C.card;
+
+    uilabel(titleBox, ...
+        'Text', 'Operations workspace', ...
+        'FontName', fontName, ...
+        'FontSize', 22, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.card);
+
+    helpBtn = uibutton(titleBox, ...
+        'Text', '?', ...
+        'FontName', fontName, ...
+        'FontSize', 18, ...
+        'FontWeight', 'bold', ...
+        'BackgroundColor', C.bg, ...
+        'FontColor', C.text, ...
+        'Tooltip', sprintf('Workflow Guide:\n1. Configure parameters on the left rail\n2. Click GENERATE SCENARIO in the top header\n3. Click RUN ASSOCIATION to simulate the system\n4. Click EXPORT to save data and graphs'));
+    % workspaceSubtitle = uilabel(titleBox, ...
+    %     'Text', 'Header buttons execute the workflow; the left rail summarize the configuration parameters', ...
+    %     'FontName', fontName, ...
+    %     'FontSize', 11, ...
+    %     'FontColor', C.muted, ...
+    %     'BackgroundColor', C.card);
+
+    scenarioBadge = ribbonBadge(ribGrid, 'Scenario', 'SETUP', C.neutralSoft, C.muted, C, fontName)
+    assocBadge    = ribbonBadge(ribGrid, 'Association', 'LOCKED', C.neutralSoft, C.disabled, C, fontName);
+    exportBadge   = ribbonBadge(ribGrid, 'Export Datas', 'LOCKED', C.neutralSoft, C.disabled, C, fontName);
+    runMeter      = runtimeBar(ribGrid, C, fontName);
+
+    %% MIDDLE CONTENT
+    middle = uigridlayout(workspace, [2 2]);
+    middle.Layout.Row = 2;
+    middle.ColumnWidth = {'1x', 365};
+    middle.RowHeight = {'1x', 112};
+    middle.ColumnSpacing = 14;
+    middle.Padding = [0 0 0 0];
+    middle.BackgroundColor = C.bg;
+
+    %% CANVAS PANEL
+    canvasPanel = atlasCard(middle, C);
+    canvasPanel.Layout.Row = 1; 
+    canvasPanel.Layout.Column = 1;
+
+    canv = uigridlayout(canvasPanel, [3 1]);
+    canv.RowHeight = {58, '1x', 42};
+    canv.Padding = [18 18 18 18];
+    canv.RowSpacing = 12;
+    canv.BackgroundColor = C.card;
+
+    canvasTitleBox = uigridlayout(canv, [2 1]);
+    canvasTitleBox.RowHeight = {28, 22};
+    canvasTitleBox.Padding = [0 0 0 0];
+    canvasTitleBox.RowSpacing = 0;
+    canvasTitleBox.BackgroundColor = C.card;
+
+    canvasTitleLabel = uilabel(canvasTitleBox, ...
+        'Text', 'KPI Analytics Dashboard', ... % <--- TESTO FISSO
+        'FontName', fontName, ...
+        'FontSize', 22, ...                    % <--- GRANDEZZA FISSA
+        'FontWeight', 'bold', ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.card);
+
+    canvasSubtitle = uilabel(canvasTitleBox, ...
+        'Text', '', ...                        % <--- SOTTOTITOLO VUOTO
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.card);
+
+    ax = uiaxes(canv);
+    ax.Color = C.canvas;
+    ax.XColor = C.axis;
+    ax.YColor = C.axis;
+    ax.GridColor = C.grid;
+    ax.Box = 'off';
+    ax.Toolbar.Visible = 'off';
+    ax.FontName = fontName;
+    ax.FontSize = 9;
+    clearAtlasMap(ax, C);  % Startup: central workspace is empty until a real scenario is generated.
+
+    canvasFooter = uilabel(canv, ...
+        'Text', '', ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.cardAlt, ...
+        'HorizontalAlignment', 'center');
+
+%% ANALYTICS PANEL
+analyticsPanel = uipanel(middle, 'BackgroundColor', C.bg, 'BorderType', 'none');
+analyticsPanel.Layout.Row = [1 2];
+analyticsPanel.Layout.Column = 2;
+analyticsPanel.Scrollable = 'on';
+
+ana = uigridlayout(analyticsPanel, [3 1]);
+ana.RowHeight = {35, 550, '1x'};
+ana.Padding = [18 18 18 18];
+ana.RowSpacing = 6;
+ana.BackgroundColor = C.bg;
+
+uilabel(ana, ...
+    'Text', 'KPI CONTROLS', ...
+    'FontName', fontName, ...
+    'FontSize', 22, ...
+    'FontWeight', 'bold', ...
+    'FontColor', C.text, ...
+    'BackgroundColor', C.bg);
+
+kpiGrid = uigridlayout(ana, [9, 2]);
+kpiGrid.Layout.Row = 2;
+kpiGrid.Layout.Column = 1;
+kpiGrid.RowSpacing = 8;
+kpiGrid.ColumnSpacing = 8;
+kpiGrid.BackgroundColor = C.bg;
+kpiGrid.RowHeight = {38, 38, 38, 38, 38,40, 48, 'fit', '1x'};
+kpiGrid.ColumnWidth = {'1x', '1x'};
+
+% 8 BOTTONI
+btnLabels = {'User Dist.', 'View Const.', 'SNR Evol', 'Rate CDF', 'Throughput', 'Handovers', 'Served Users', 'HO Freq CDF', 'Dyn1', 'Dyn2'};
+plotIDs = {"UserDistribution", "ViewConstellation", "SNREvolution", "rateFairnessCDF", "throughputEvolution", "totalHandoversEvolution", "servedUsersFractionEvolution", "handoverFrequencyCDF", "", ""};
+kpiBtns = gobjects(1, 10);
+for j = 1:10
+    kpiBtns(j) = uibutton(kpiGrid, ...
+        'Text', btnLabels{j}, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'BackgroundColor', C.neutralSoft, ...
+        'FontColor', C.disabled, ...
+        'Enable', 'off');
+    kpiBtns(j).Layout.Row = ceil(j/2);
+    kpiBtns(j).Layout.Column = mod(j-1, 2) + 1;
+    
+    if j == 2
+        kpiBtns(j).ButtonPushedFcn = @launchViewer;
+    elseif j <= 8
+        kpiBtns(j).ButtonPushedFcn = @(src, event) handleKPIClick(btnLabels{j}, plotIDs{j});
+    end
+end
+
+inspectorBtn = flatButton(kpiGrid, '🔍 User Inspector', C.neutralSoft, [0,0,0], fontName);
+inspectorBtn.Layout.Row = 6;
+inspectorBtn.Layout.Column = [1 2];
+inspectorBtn.FontSize = 13;
+inspectorBtn.ButtonPushedFcn = @openUserInspector;
+
+
+
+% TITOLO KPI SUMMARY
+lblSummary = uilabel(kpiGrid, ...
+    'Text', 'KPI SUMMARY', ...
+    'FontName', fontName, ...
+    'FontSize', 22, ...
+    'FontWeight', 'bold', ...
+    'FontColor', C.text, ...
+    'HorizontalAlignment', 'left', ...
+    'BackgroundColor', C.bg);
+lblSummary.Layout.Row = 7;
+lblSummary.Layout.Column = [1 2];
+
+% TABELLA KPI
+% TABELLA KPI% TABELLA KPI
+kpiTable = uitable(kpiGrid, ...
+    'Data', kpiTableData([], []), ...
+    'ColumnName', [], ...
+    'RowName', [], ... % Rimuove i numeri di riga per un look minimal ed elegante
+    'ColumnWidth', {'5x', '2x', '2x'}, ... % Proporzioni dinamiche per evitare barre di scorrimento
+    'FontName', fontName, ...
+    'FontSize', 12, ...
+    'ColumnSortable', [false false false]);
+kpiTable.Layout.Row = 8;
+kpiTable.Layout.Column = [1 2];
+
+% STILIZZAZIONE DELLA TABELLA (Colori chiari ed eleganti)
+kpiTable.BackgroundColor = [1 1 1; 0.94 0.95 0.96]; % Bianco e grigio chiarissimo alternati
+kpiTable.ForegroundColor = [0.15 0.15 0.15]; % Testo grigio scuro (quasi nero) leggibile
+
+% STILIZZAZIONE DELLA TABELLA (Colori chiari ed eleganti)
+kpiTable.BackgroundColor = [1 1 1]; % Sfondo globale bianco (rimuove il blocco nero vuoto!)
+kpiTable.ForegroundColor = [0.15 0.15 0.15]; % Testo grigio scuro
+
+try
+    % Usa la funzione del tema per applicare le righe alternate chiare
+    tryStyleTable(kpiTable, C);
+    
+    % Grassetto a sinistra e valori centrati
+    styleMetric = uistyle('FontWeight', 'bold');
+    addStyle(kpiTable, styleMetric, 'column', 1);
+
+    styleValues = uistyle('HorizontalAlignment', 'center');
+    addStyle(kpiTable, styleValues, 'column', [2 3]);
+
+    % Diamo alla primissima riga l'aspetto di un'intestazione!
+    styleHeader = uistyle('FontWeight', 'bold', 'BackgroundColor', C.cardAlt);
+    addStyle(kpiTable, styleHeader, 'row', 1);
+catch
+    % Fallback silenzioso
+end
+    %% BOTTOM CONSOLE
+    consolePanel = atlasCard(middle, C);
+    consolePanel.Layout.Row = 2;
+    consolePanel.Layout.Column = 1;
+
+    con = uigridlayout(consolePanel, [1 4]);
+    con.ColumnWidth = {120, '1x', 110, 110};
+    con.Padding = [18 14 18 14];
+    con.ColumnSpacing = 12;
+    con.BackgroundColor = C.card;
+
+    uilabel(con, ...
+        'Text', 'Console', ...
+        'FontName', fontName, ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.accent, ...
+        'BackgroundColor', C.blueSoft, ...
+        'HorizontalAlignment', 'center');
+
+    logBox = uitextarea(con, ...
+        'Editable', 'off', ...
+        'Enable', 'off', ...
+        'BackgroundColor', C.cardAlt, ...
+        'FontColor', C.text, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'Value', {'READY'});
+
+    clearLogBtn = flatButton(con, 'Clear log', C.cardAlt, C.text, fontName);
+    copyLogBtn  = flatButton(con, 'Copy log', C.cardAlt, C.text, fontName);
+
+    %% CALLBACK WIRING
+    scenarioBadge.Button.ButtonPushedFcn = @onGenerate;
+    %viewerBadge.Button.ButtonPushedFcn = @onViewer;
+    assocBadge.Button.ButtonPushedFcn = @onAssociate;
+    exportBadge.Button.ButtonPushedFcn = @onExport;
+    tuneBtn.ButtonPushedFcn = @onTune;
+    defaultBtn.ButtonPushedFcn = @onDefaultValues;
+    resetWorkspaceBtn.ButtonPushedFcn = @onResetWorkspace;
+
+    clearLogBtn.ButtonPushedFcn = @(~,~) clearLog();
+    copyLogBtn.ButtonPushedFcn = @(~,~) copyLog();
+
+    numUsersField.ValueChangedFcn = @onInputChanged;
+    csiDrop.ValueChangedFcn = @onInputChanged;
+    algDrop.ValueChangedFcn = @onPolicyChanged;
+    seedField.ValueChangedFcn = @onInputChanged;
+
+    setInputFieldsEmpty();
+    clearSimulationWorkspace(false);
+    refreshUI('initial');
+
+    %% CALLBACK IMPLEMENTATION
+    function onInputChanged(varargin)
+
+        if isfield(State, 'scenarioGenerated') && State.scenarioGenerated
+            selection=uiconfirm(fig, ...
+                ['Attention: the modification of the parameter will generate a new scenario. The datas of the current scenario will be discarded. ' ...
+                'A new simulation will be performed. Continue?'], ...
+                'Invalida Scenario', ...
+                'Options', {'Continue', 'Retry'},...
+                'DefaultOption', 'Retry',...
+                'CancelOption', 'Retry',...            
+                'Icon', 'warning');
+
+
+            if strcmp(selection, 'Retry')
+                % Ripristina le caselle di testo ai vecchi valori salvati in State.params
+                if ~isempty(State.params)
+                    setInputFieldsFromParams(State.params);
+                end
+                appendLog('MODIFICA PARAMETRI ANNULLATA. SCENARIO PRESERVATO.');
+                return; % Blocca l'esecuzione della funzione! Non cancella nulla.
+            end
+        end
+
+        State.params = readGUI(false);
+        clearSimulationWorkspace(false);
+
+        appendLog('PARAMETERS UPDATED; CURRENT RUN INVALIDATED');
+        refreshUI('stale');
+    end
+
+    function onValidate(~, ~)
+        try
+            params = readGUI();
+            validate_NAPOLEON_params(params);
+            State.params = params;
+            appendLog('PARAMETERS VALID');
+            uialert(fig, 'The current mission configuration is valid.', 'Validation passed');
+        catch ME
+            handleError(ME, false);
+            uialert(fig, ME.message, 'Validation failed');
+        end
+    end
+
+
+    function onPolicyChanged(~, ~)
+        % Leggi il nuovo valore selezionato nel dropdown ma NON sovrascrivere ancora State.params
+        newParams = readGUI(false);
+    
+        % Se c'è già un'associazione completata, chiedi conferma prima di cancellarla
+        if State.associationCompleted
+            selection = uiconfirm(fig, ...
+                ['Changing the association policy will discard the current ' ...
+                 'association results. The scenario will be preserved and ' ...
+                 'you can re-run the association with the new policy. Continue?'], ...
+                'Change Policy', ...
+                'Options',       {'Change policy', 'Keep current'}, ...
+                'DefaultOption', 'Keep current', ...
+                'CancelOption',  'Keep current', ...
+                'Icon',          'warning');
+    
+            if strcmp(selection, 'Keep current')
+                % Ripristina il dropdown al valore precedente salvato in State.params
+                if ~isempty(State.params) && isfield(State.params, 'associationAlgorithm')
+                    algDrop.Value = char(string(State.params.associationAlgorithm));
+                end
+                appendLog('POLICY CHANGE CANCELLED — RESULTS PRESERVED.');
+                return
+            end
+        end
+    
+        % L'utente ha confermato (o non c'era un'associazione): aggiorna State.params e resetta i RESULTS
+        State.params = newParams;
+        State.RESULTS = [];
+        State.associationCompleted = false;
+        appendLog('POLICY UPDATED — SCENARIO PRESERVED, RESULTS RESET. Re-run association.');
+        refreshUI('scenarioReady');   % ← lo scenario rimane valido, assocBadge → "RUN"
+    end
+
+
+    function onGenerate(~, ~)
+        try
+            params = readGUI();
+
+            if params.numUsers > 600
+                choice = uiconfirm(fig, ...
+                    'Large scenario. Continue?', ...
+                    'Scenario warning', ...
+                    'Options', {'Continue', 'Cancel'}, ...
+                    'DefaultOption', 'Cancel', ...
+                    'CancelOption', 'Cancel');
+
+                if strcmp(choice, 'Cancel')
+                    appendLog('GENERATION CANCELLED');
+                    return;
+                end
+            end
+
+            validate_NAPOLEON_params(params);
+
+            State.lastRunStarted = datetime('now');
+            State.lastRunFinished = [];
+            setBusy(true, 'GENERATING');
+            appendLog('CHANNEL MODEL STARTED');
+
+            SCENARIO = run_NAPOLEON_scenario(params);
+
+            State.params = params;
+            State.SCENARIO = SCENARIO;
+            State.scenarioPlotData = buildScenarioPlotData(SCENARIO);
+            State.RESULTS = [];
+            State.viewer = [];
+            State.scenarioGenerated = true;
+            State.associationCompleted = false;
+            State.lastRunFinished = datetime('now');
+
+            appendLog('SCENARIO READY');
+            refreshUI('scenarioReady');
+
+            %openSatelliteViewer();
+
+        catch ME
+            handleError(ME, true);
+        end
+
+        setBusy(false, 'READY');
+    end
+
+    function onViewer(~, ~)
+        if ~State.scenarioGenerated
+            uialert(fig, 'Generate a scenario first.', 'Viewer unavailable');
+            return;
+        end
+
+        openSatelliteViewer();
+        refreshUI('viewer');
+    end
+
+    function onAssociate(~, ~)
+        try
+            if ~State.scenarioGenerated
+                uialert(fig, 'Generate a scenario first.', 'Missing scenario');
+                return;
+            end
+
+            State.lastRunStarted = datetime('now');
+            State.lastRunFinished = [];
+            setBusy(true, 'ASSOCIATING');
+            appendLog('ASSOCIATION STARTED');
+
+            RESULTS = run_NAPOLEON_simulation(State.SCENARIO, State.params);
+
+            State.RESULTS = RESULTS;
+            State.associationCompleted = true;
+            State.lastRunFinished = datetime('now');
+
+            appendLog('ASSOCIATION DONE');
+            refreshUI('resultsReady');
+
+        catch ME
+            handleError(ME, true);
+        end
+
+        setBusy(false, 'READY');
+    end
+
+    function onExport(~, ~)
+        try
+            if ~State.associationCompleted || isempty(State.RESULTS)
+                uialert(fig, 'Nothing to export.', 'Export unavailable');
+                return;
+            end
+
+            % 1. Apre la classica finestra di selezione cartella (Folder)
+            path = uigetdir(pwd, 'Select Export Folder');
+            if isequal(path, 0)
+                appendLog('EXPORT CANCELLED');
+                return;
+            end
+            
+            % 2. Crea una sottocartella dedicata con data e ora
+            folderName = sprintf('NAPOLEON_Export_%s', datestr(now, 'yyyyMMdd_HHmmss'));
+            exportDir = fullfile(path, folderName);
+            mkdir(exportDir);
+            
+            setBusy(true, 'EXPORTING');
+            appendLog('EXPORT STARTED. This might take a minute...');
+            drawnow;
+            
+            % ESPORTAZIONE TABELLE IN EXCEL (.xlsx)
+            % Riuniamo tutte le tabelle in un unico file Excel pulito a schede
+            excelFile = fullfile(exportDir, 'NAPOLEON_Tables_Report.xlsx');
+            
+            writecell([setupTable.ColumnName'; setupTable.Data], excelFile, 'Sheet', 'Configuration');
+            writecell([kpiTable.ColumnName'; kpiTable.Data], excelFile, 'Sheet', 'KPI_Summary');
+           
+            % ESPORTAZIONE DATI GREZZI MATLAB (.mat)
+            % Essenziale per riprodurre lo scenario in futuro senza ri-runnare
+            matFile = fullfile(exportDir, 'NAPOLEON_RawData.mat');
+            RESULTS = State.RESULTS;
+            SCENARIO = State.SCENARIO;
+            params = State.params;
+            save(matFile, 'RESULTS', 'SCENARIO', 'params');
+            
+            % ESPORTAZIONE GRAFICI IN PNG (300 dpi)
+            % Creiamo una figura invisibile in background per non disturbare la GUI
+            tempFig = figure('Visible', 'off', 'Position', [100 100 1200 800], 'Color', 'w');
+            tempAx = axes(tempFig);
+            
+            % Lista dei plot standard
+            plotsToExport = {"SNREvolution", "rateFairnessCDF", "throughputEvolution", ...
+                             "totalHandoversEvolution", "servedUsersFractionEvolution", "handoverFrequencyCDF"};
+            
+            % Aggiungiamo i plot dinamici in base alla policy utilizzata
+            policy = string(State.params.associationAlgorithm);
+            if policy == "URLLC"
+                plotsToExport = [plotsToExport, {"URLLC_latency90", "URLLC_TCR"}];
+            elseif policy == "eMBB"
+                plotsToExport = [plotsToExport, {"eMBB_spectralEfficiency", "eMBB_TCR"}];
+            end
+            
+            % Cicla su ogni KPI, disegnalo e salvalo ad alta qualità
+            for i = 1:length(plotsToExport)
+                cla(tempAx, 'reset');
+
+                
+                % FORZA COLORI CHIARI
+                tempAx.Color = [1 1 1];
+                tempAx.XColor = [0 0 0];
+                tempAx.YColor = [0 0 0];
+                tempAx.GridColor = [0.15 0.15 0.15];
+                tempAx.Box = 'off';
+                
+                plotNAPOLEONKPI(State.RESULTS, State.SCENARIO, plotsToExport{i}, 'Axes', tempAx, 'LineWidth', 2);
+                
+                % FORZA I TESTI NERI
+                tempAx.Title.Color = 'k';
+                if ~isempty(tempAx.Subtitle)
+                    tempAx.Subtitle.Color = 'k';
+                end
+                
+                exportgraphics(tempFig, fullfile(exportDir, sprintf('%s.png', plotsToExport{i})), 'Resolution', 300);
+            end
+            
+            % Salva anche la mappa 3D
+          
+            cla(tempAx);
+            
+            % FORZA COLORI CHIARI E TESTI NERI
+            tempAx.Color = [1 1 1];
+            tempAx.XColor = [0 0 0];
+            tempAx.YColor = [0 0 0];
+            tempAx.GridColor = [0.15 0.15 0.15];
+            tempAx.Box = 'off';
+            
+            plotUserScenarioDistribution(State.SCENARIO.satelliteScenario, State.SCENARIO.configAoI, 'Axes', tempAx, 'ShowCityLabels', true, 'ShowUsers', true);
+            tempAx.Title.Color = 'k';
+            
+            exportgraphics(tempFig, fullfile(exportDir, 'UserDistributionMap.png'), 'Resolution', 300);
+            close(tempFig);
+            
+            % CHIUSURA
+            appendLog(['EXPORTED TO: ', exportDir]);
+            setBusy(false);            
+            uialert(fig, sprintf('All data successfully exported to:\n%s', exportDir), 'Export Complete', 'Icon', 'success');
+            
+            % Mostra un popup di successo all'utente
+            uialert(fig, sprintf('All data successfully exported to:\n%s', exportDir), 'Export Complete', 'Icon', 'success');
+            
+        catch ME
+            if exist('tempFig', 'var') && isgraphics(tempFig)
+                close(tempFig); % Se va in errore, assicura di chiudere la figura invisibile
+            end
+            setBusy(false);
+            uialert(fig, ME.message, 'Export Error');
+            appendLog(['EXPORT ERROR: ', ME.message]);
+        end
+    end
+
+    function onDefaultValues(~, ~)
+        params = State.defaultParams;
+        setInputFieldsFromParams(params);
+        State.params = params;
+        clearSimulationWorkspace(false);
+        kpiTable.Data = kpiTableData([], []);
+        complianceTable.Data = serviceComplianceData([], params);
+        violationsTable.Data = violationsPanelData([], params);
+        appendLog('DEFAULT PARAMETERS LOADED');
+        refreshUI('initial');
+    end
+
+        function onResetWorkspace(~, ~)
+        % Mostra l'alert di conferma prima di procedere
+        msg = "Resetting the workspace will discard all current configurations and results. Do you want to continue?";
+        scelta = uiconfirm(fig, msg, "Warning", ...
+            "Icon", "warning", ...
+            "Options", ["Continue", "Cancel"], ...
+            "DefaultOption", 2, "CancelOption", 2);
+            
+        % Se l'utente sceglie "Cancel", fermiamo la funzione
+        if strcmp(scelta, "Cancel")
+            return; 
+        end
+
+        % Altrimenti, esegue il reset (questo è il tuo codice originale)
+        setInputFieldsEmpty();
+        State.params = [];
+        clearSimulationWorkspace(false);
+        kpiTable.Data = kpiTableData([], []);
+        complianceTable.Data = serviceComplianceData([], []);
+        violationsTable.Data = violationsPanelData([], []);
+        clearLog(); % Svuota completamente la console
+        setRuntimeBar(runMeter, 0.00, '00:00', C.railMuted, C);
+        refreshUI('initial');
+    end
+    function onTune(~, ~)
+        switch string(algDrop.Value)
+            case "URLLC"
+                tuneURLLC();
+            case "eMBB"
+                tuneEMBB();
+        end
+
+        setupTable.Data = referenceSetupData(State.params);
+    end
+
+    function onClearResults(~, ~)
+        State.RESULTS = [];
+        State.associationCompleted = false;
+        appendLog('RESULTS CLEARED');
+        refreshUI('scenarioReady');
+    end
+
+    function onCopySummary(~, ~)
+        txt = strjoin(composeSummaryLines(), newline);
+        clipboard('copy', txt);
+        appendLog('SUMMARY COPIED TO CLIPBOARD');
+    end
+
+    function clearLog()
+        logBox.Value = {'READY'};
+    end
+
+    function copyLog()
+        v = logBox.Value;
+        if ischar(v)
+            v = {v};
+        end
+        clipboard('copy', strjoin(v, newline));
+        appendLog('LOG COPIED TO CLIPBOARD');
+    end
+
+    %% INTERNAL HELPERS
+    function [params, isComplete] = readGUI(requireComplete)
+        if nargin < 1
+            requireComplete = true;
+        end
+
+        if isfield(State, 'params') && ~isempty(State.params)
+            params = State.params;
+        else
+            params = State.defaultParams;
+        end
+        missing = {};
+        isComplete = true;
+
+        numUsersTxt = strtrim(string(numUsersField.Value));
+        seedTxt = strtrim(string(seedField.Value));
+        csiValue = string(csiDrop.Value);
+        algValue = string(algDrop.Value);
+
+        if numUsersTxt == ""
+            missing{end+1} = 'Terminals'; %#ok<AGROW>
+            isComplete = false;
+        else
+            numUsersValue = str2double(numUsersTxt);
+            if isnan(numUsersValue) || ~isfinite(numUsersValue) || numUsersValue <= 0
+                isComplete = false;
+                if requireComplete
+                    error('Terminals must be a positive numeric value.');
+                end
+            else
+                params.numUsers = round(numUsersValue);  
+            end
+        end
+        
+
+        if csiValue == "--"
+            missing{end+1} = 'CSI mode'; %#ok<AGROW>
+            isComplete = false;
+        else
+            params.CSImode = csiValue;
+        end
+
+        if algValue == "--"
+            missing{end+1} = 'Policy'; %#ok<AGROW>
+            isComplete = false;
+        else
+            params.associationAlgorithm = algValue;
+        end
+
+        if seedTxt == ""
+            missing{end+1} = 'Seed'; %#ok<AGROW>
+            isComplete = false;
+        else
+            seedValue = str2double(seedTxt);
+            if isnan(seedValue) || ~isfinite(seedValue)
+                isComplete = false;
+                if requireComplete
+                    error('Seed must be a numeric value.');
+                end
+            else
+                params.seed = round(seedValue);  % ← SPOSTARE QUI
+            end
+        end
+
+        % Controllo finale (non distrugge più la variabile params!)
+        if ~isComplete
+            if requireComplete
+                error(['Complete parameter setup before running: ', strjoin(missing, ', '), '.']);
+            end
+        end
+    end
+
+    function clearSimulationWorkspace(resetParams)
+        if nargin < 1
+            resetParams = false;
+        end
+
+        % Chiude esplicitamente il viewer per evitare memory leaks
+        if isfield(State, 'viewer') && ~isempty(State.viewer) && isvalid(State.viewer)
+            try
+                close(State.viewer);
+            catch
+            end
+        end
+
+        State.SCENARIO = [];
+        State.scenarioPlotData = [];
+        State.RESULTS = [];
+        State.viewer = [];
+        State.scenarioGenerated = false;
+        State.associationCompleted = false;
+        State.lastRunStarted = [];
+        State.lastRunFinished = [];
+        State.runPhase = "";
+        stopRunTimer(false);
+
+        if resetParams
+            State.params = [];
+        end
+
+        clearAtlasMap(ax, C);
+        %canvasTitleLabel.Text = '';
+        canvasSubtitle.Text = '';
+        canvasFooter.Text = '';
+    end
+
+    function setInputFieldsFromParams(params)
+        numUsersField.Value = num2str(params.numUsers);
+        csiDrop.Value = char(string(params.CSImode));
+        algDrop.Value = char(string(params.associationAlgorithm));
+        seedField.Value = num2str(params.seed);
+    end
+
+    function setInputFieldsEmpty()
+        numUsersField.Value = '';
+        csiDrop.Value = '--';
+        algDrop.Value = '--';
+        seedField.Value = '';
+    end
+
+    function openSatelliteViewer()
+        try
+            if isempty(State.SCENARIO) || ~isfield(State.SCENARIO, 'satelliteScenario') || isempty(State.SCENARIO.satelliteScenario)
+                uialert(fig, 'satelliteScenario object missing.', 'Viewer unavailable');
+                return;
+            end
+
+            State.viewer = satelliteScenarioViewer(State.SCENARIO.satelliteScenario);
+            appendLog('SATELLITE VIEWER OPENED');
+
+        catch ME
+            handleError(ME, false);
+        end
+    end
+
+    function setBusy(flag, label)
+        if flag
+            State.runPhase = string(label);
+            startRunTimer(label);
+
+            State.savedFooterText = canvasFooter.Text;
+            canvasFooter.Text = '';
+
+            wg = findobj(canv, 'Tag', 'welcomeGrid');
+            if ~isempty(wg)
+                delete(wg);
+            end
+
+
+            % GESTIONE DELLE TAB APERTE
+            if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
+                if label == "EXPORTING"
+                    % Se stiamo esportando, le nascondiamo solamente senza distruggerle!
+                    State.kpiTabGroup.Visible = 'off';
+                else
+                    % Se è una nuova simulazione, le distruggiamo
+                    delete(State.kpiTabGroup.Children);
+                    State.kpiTabs = struct();
+                    State.kpiTabGroup.Visible = 'off';
+                end
+            end
+            
+            % MOSTRA LA SCRITTA GIGANTE GRIGIA AL CENTRO
+            vt = findobj(canv, 'Tag', 'testoVuotoKPI');
+            if ~isempty(vt)
+                vt.Text = ['[' char(label) '] in progress... Please wait.'];
+                vt.Visible = 'on'; % <--- FONDAMENTALE PER RENDERLA VISIBILE
+            end
+            
+            % Nascondi la mappa se era accesa
+            if isgraphics(ax)
+                ax.Visible = 'off';
+            end
+            
+            % COMANDO CRUCIALE: Forza l'interfaccia a rinfrescarsi ORA
+            drawnow;
+
+
+            enableAction(scenarioBadge, false);
+            %enableAction(viewerBadge, false);
+            enableAction(assocBadge, false);
+            enableAction(exportBadge, false);
+            numUsersField.Enable = 'off';
+            csiDrop.Enable = 'off';
+            algDrop.Enable = 'off';
+            seedField.Enable = 'off';
+            defaultBtn.Enable = 'off';
+            resetWorkspaceBtn.Enable = 'off';
+        else
+            stopRunTimer(true);
+            if isfield(State, 'savedFooterText')
+                canvasFooter.Text = State.savedFooterText;
+            end
+            refreshUI('preserve');
+        end
+
+        drawnow;
+    end
+
+    function refreshUI(mode)
+        if nargin < 1
+            mode = 'preserve';
+        end
+
+        [currentParams, paramsComplete] = readGUI(false);
+        State.params = currentParams;
+        setupTable.Data = referenceSetupData(currentParams);
+
+        if State.associationCompleted
+            canvasTitleLabel.Text = 'KPI Analytics Dashboard';
+            setRailStatus('RESULTS READY', C.ready, C);
+            setRibbonBadge(scenarioBadge, 'Scenario', 'READY', C.greenSoft, C.ready);
+            %setRibbonBadge(viewerBadge, 'Viewer', 'OPEN', C.blueSoft, C.accent);
+            setRibbonBadge(assocBadge, 'Association', 'DONE', C.greenSoft, C.ready);
+            setRibbonBadge(exportBadge, 'Export', 'READY', C.blueSoft, C.accent);
+
+            enableAction(scenarioBadge, true);
+            %enableAction(viewerBadge, true);
+            enableAction(assocBadge, true);
+            enableAction(exportBadge, true);
+            numUsersField.Enable = 'on';
+            csiDrop.Enable = 'on';
+            algDrop.Enable = 'on';
+            seedField.Enable = 'on';
+            defaultBtn.Enable = 'on';
+            resetWorkspaceBtn.Enable = 'on';
+
+            complianceTable.Data = serviceComplianceData(State.RESULTS, State.params);
+            violationsTable.Data = violationsPanelData(State.RESULTS, State.params);
+            kpiTable.Data = kpiTableData(State.RESULTS, State.params);
+            
+           policy = string(currentParams.associationAlgorithm);
+           updateDynamicKPIButtons("results", policy);
+            
+            
+            canvasSubtitle.Text = '';
+            canvasFooter.Text = '';         % Svuota il footer
+            
+            % ELIMINA IL BLOCCO GRIGIO SOTTO: 
+            % 'canv' aveva 3 righe {58, '1x', 42}. Noi azzeriamo i 42 pixel 
+            % dell'ultima riga, dando tutto lo spazio al grafico!
+            canv.RowHeight = {58, '1x', 55};
+            canvasFooter.WordWrap = 'on';
+            canvasFooter.Text = 'Select a KPI to visualize its description.';
+            canvasFooter.FontColor = C.muted;
+
+
+
+
+            % 2. Nascondiamo e puliamo la mappa 3D (che viveva in ax)
+            ax.Visible = 'off';
+            cla(ax);
+            
+            % 3. Se esisteva già un TabGroup di una simulazione precedente, distruggiamolo
+            if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
+                delete(State.kpiTabGroup);
+            end
+            
+            % 4. Creiamo il contenitore delle schede dentro la griglia 'canv'
+            % e lo assegniamo alla riga 2 (esattamente dove stava la mappa!)
+            State.kpiTabGroup = uitabgroup(canv);
+            State.kpiTabGroup.SelectionChangedFcn = @(src, event) updateFooterText(event.NewValue.Title);
+            State.kpiTabGroup.Layout.Row = 2;
+            State.kpiTabGroup.Layout.Column = 1;
+            State.kpiTabGroup.Visible = 'off';
+            
+            % 5. Inizializziamo il registro per tracciare le schede aperte
+            State.kpiTabs = struct();
+
+            % Elimina eventuali testi precedenti per sicurezza
+            vecchioTesto = findobj(canv, 'Tag', 'testoVuotoKPI');
+            delete(vecchioTesto);
+            
+            % Crea la scritta grigia centrale
+            testoSegnaposto = uilabel(canv, ...
+                'Text', 'Select from the right panel the Performance indicator that you want to analyze', ...
+                'FontName', fontName, ...
+                'FontSize', 16, ...
+                'FontColor', C.disabled, ... % Usa il grigio chiaro del tuo tema
+                'HorizontalAlignment', 'center', ...
+                'VerticalAlignment', 'center', ...
+                'Tag', 'testoVuotoKPI');
+            testoSegnaposto.Layout.Row = 2;
+            testoSegnaposto.Layout.Column = 1;
+            % --- FINE NUOVO CODICE ---
+
+
+
+        elseif State.scenarioGenerated
+            canvasTitleLabel.Text = 'KPI Analytics Dashboard';
+
+             % 1. Prepariamo il contenitore per il grafico User Dist
+            if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
+                delete(State.kpiTabGroup.Children); % Cancella solo i tab interni
+                State.kpiTabs = struct();
+                State.kpiTabGroup.Visible = 'off';
+            else
+                % CREIAMO IL CONTENITORE SE NON ESISTE ANCORA!
+                State.kpiTabGroup = uitabgroup(canv);
+                State.kpiTabGroup.SelectionChangedFcn = @(src, event) updateFooterText(event.NewValue.Title);
+                State.kpiTabGroup.Layout.Row = 2;
+                State.kpiTabGroup.Layout.Column = 1;
+                State.kpiTabGroup.Visible = 'off';
+                State.kpiTabs = struct();
+            end
+            
+            % 2. Aggiorniamo il testo segnaposto al centro
+            vecchioTesto = findobj(canv, 'Tag', 'testoVuotoKPI');
+            delete(vecchioTesto);
+            
+            nuovoTesto = uilabel(canv, ...
+                'Text', 'Scenario Generated. Click "User Dist." to view the terminal distribution map.', ...
+                'FontName', fontName, ...
+                'FontSize', 16, ...
+                'FontColor', C.disabled, ...
+                'HorizontalAlignment', 'center', ...
+                'VerticalAlignment', 'center', ...
+                'Tag', 'testoVuotoKPI');
+                
+            % CORREZIONE: Assegniamo Riga e Colonna separatamente!
+            nuovoTesto.Layout.Row = 2;
+            nuovoTesto.Layout.Column = 1;
+            
+            % 3. Mappa 3D preparata e spenta
+            ax.Visible = 'off';
+            cla(ax);
+
+            % 4. Aggiorniamo bottoni, badge e log
+            setRailStatus('SCENARIO READY', C.ready, C);
+            setRibbonBadge(scenarioBadge, 'Scenario', 'READY', C.greenSoft, C.ready);
+            setRibbonBadge(assocBadge, 'Association', 'RUN', C.blueSoft, C.accent);
+            setRibbonBadge(exportBadge, 'Export', 'LOCKED', C.neutralSoft, C.disabled);
+
+            enableAction(scenarioBadge, true);
+            enableAction(assocBadge, true);
+            enableAction(exportBadge, false);
+            numUsersField.Enable = 'on';
+            csiDrop.Enable = 'on';
+            algDrop.Enable = 'on';
+            seedField.Enable = 'on';
+            defaultBtn.Enable = 'on';
+            resetWorkspaceBtn.Enable = 'on';
+
+            complianceTable.Data = serviceComplianceData([], State.params);
+            violationsTable.Data = violationsPanelData([], State.params);
+            kpiTable.Data = kpiTableData([], []);
+            
+            policy = string(currentParams.associationAlgorithm);
+            updateDynamicKPIButtons("scenario", policy);
+
+            canvasSubtitle.Text = '';
+            canvasFooter.Text = scenarioDistributionFooter(State.scenarioPlotData, State.params);
+        else
+            
+
+            if strcmp(mode, 'stale')
+                if paramsComplete
+                    setRailStatus('CONFIG STALE', C.warnText, C);
+                    setRibbonBadge(scenarioBadge, 'Scenario', 'RUN', C.warnSoft, C.warnText);
+                    complianceTable.Data = serviceComplianceData([], currentParams);
+                    violationsTable.Data = violationsPanelData([], currentParams);
+                else
+                    setRailStatus('STANDBY', C.railMuted, C);
+                    setRibbonBadge(scenarioBadge, 'Scenario', 'SETUP', C.neutralSoft, C.disabled);
+                    complianceTable.Data = serviceComplianceData([], []);
+                    violationsTable.Data = violationsPanelData([], []);
+                end
+            else
+                setRailStatus('STANDBY', C.railMuted, C);
+                if paramsComplete
+                    setRibbonBadge(scenarioBadge, 'Scenario', 'RUN', C.blueSoft, C.accent);
+                    complianceTable.Data = serviceComplianceData([], currentParams);
+                    violationsTable.Data = violationsPanelData([], currentParams);
+                else
+                    setRibbonBadge(scenarioBadge, 'Scenario', 'SETUP', C.neutralSoft, C.disabled);
+                    complianceTable.Data = serviceComplianceData([], []);
+                    violationsTable.Data = violationsPanelData([], []);
+                end
+            end
+
+            %setRibbonBadge(viewerBadge, 'Viewer', 'LOCKED', C.neutralSoft, C.disabled);
+            setRibbonBadge(assocBadge, 'Association', 'LOCKED', C.neutralSoft, C.disabled);
+            setRibbonBadge(exportBadge, 'Export', 'LOCKED', C.neutralSoft, C.disabled);
+
+            enableAction(scenarioBadge, paramsComplete);
+            %enableAction(viewerBadge, false);
+            enableAction(assocBadge, false);
+            enableAction(exportBadge, false);
+            numUsersField.Enable = 'on';
+            csiDrop.Enable = 'on';
+            algDrop.Enable = 'on';
+            seedField.Enable = 'on';
+            defaultBtn.Enable = 'on';
+            resetWorkspaceBtn.Enable = 'on';
+
+            kpiTable.Data = kpiTableData([], []);
+            
+            policy = string(currentParams.associationAlgorithm);
+            updateDynamicKPIButtons("off", policy);
+            clearAtlasMap(ax, C);
+            canvasTitleLabel.Text = '';
+            canvasSubtitle.Text = '';
+            canvasFooter.Text = '';
+
+            % DISTRUGGI EVENTUALI GRAFICI VECCHI
+            if isfield(State, 'kpiTabGroup') && ~isempty(State.kpiTabGroup) && isgraphics(State.kpiTabGroup)
+                delete(State.kpiTabGroup);
+                State.kpiTabGroup = [];
+                State.kpiTabs = struct();
+            end
+            
+            % --- INIZIO TESTO DI BENVENUTO MIGLIORATO ---
+
+
+            delete(findobj(canv, 'Tag', 'testoVuotoKPI'));
+            delete(findobj(canv, 'Tag', 'welcomeGrid'));
+            
+            % Griglia a 3 righe per avere grandezze indipendenti
+                       % Nuova griglia: l'immagine prende tutto, il bottone in alto a destra
+                       % Griglia a 1 riga e 1 colonna senza nessun margine
+            wGrid = uigridlayout(canv, [1 1]);
+            wGrid.RowHeight = {'1x'}; 
+            wGrid.ColumnWidth = {'1x'};
+            wGrid.Padding = [0 0 0 0]; % Zero bordi vuoti!
+            wGrid.BackgroundColor = C.canvas; 
+            wGrid.Layout.Row = 2;
+            wGrid.Layout.Column = 1;
+            wGrid.Tag = 'welcomeGrid';
+
+            % Immagine centrale
+            img = uiimage(wGrid);
+            img.ImageSource = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'images', 'Background_image.jpeg');
+            img.HorizontalAlignment = 'center';
+            img.VerticalAlignment = 'center';
+            img.ScaleMethod = 'fit';
+            
+            % NOTA: di base usa 'fit' (mantiene le proporzioni). 
+            % Se vuoi che l'immagine tagli un po' i bordi pur di riempire 
+            % il 100% dello schermo senza bande grigie, togli il commento alla riga sotto:
+            % img.ScaleMethod = 'fill';
+            
+            % Segnaposto invisibile per setBusy
+            vt = uilabel(canv, 'Text', '', 'Tag', 'testoVuotoKPI', 'Visible', 'off', ...
+                'FontName', fontName, 'FontSize', 16, 'FontColor', [0.55 0.55 0.55], ...
+                'HorizontalAlignment', 'center', 'VerticalAlignment', 'center');
+            vt.Layout.Row = 2;
+            vt.Layout.Column = 1;
+            % --- FINE TESTO DI BENVENUTO MIGLIORATO ---
+
+
+        end
+    end
+
+    function txt = scenarioDistributionFooter(D, params)
+        txt='';
+    end
+
+    function setRailStatus(txt, color, C)
+        state = upper(string(txt));
+        if state == "RESULTS READY"
+            setRuntimeBar(runMeter, 1.00, currentElapsedText(), color, C);
+        elseif state == "SCENARIO READY"
+            setRuntimeBar(runMeter, 1.00, currentElapsedText(), color, C);
+        elseif state == "CONFIG STALE"
+            setRuntimeBar(runMeter, 0.00, '00:00', color, C);
+        elseif state == "ERROR"
+            setRuntimeBar(runMeter, 1.00, currentElapsedText(), color, C);
+        else
+            setRuntimeBar(runMeter, 0.00, '00:00', color, C);
+        end
+    end
+
+    function startRunTimer(label)
+        stopRunTimer(false);
+        State.runPhase = string(label);
+        updateRuntimeBarLive();
+
+        try
+            State.runTimer = timer( ...
+                'ExecutionMode', 'fixedSpacing', ...
+                'Period', 0.25, ...
+                'BusyMode', 'drop', ...
+                'TimerFcn', @(~,~) updateRuntimeBarLive());
+            start(State.runTimer);
+        catch
+            State.runTimer = [];
+        end
+    end
+
+    function stopRunTimer(finalize)
+        if isfield(State, 'runTimer') && ~isempty(State.runTimer)
+            try
+                if isvalid(State.runTimer)
+                    stop(State.runTimer);
+                    delete(State.runTimer);
+                end
+            catch
+            end
+        end
+        State.runTimer = [];
+
+        if finalize
+            updateRuntimeBarLive(true);
+        end
+    end
+
+    function updateRuntimeBarLive(varargin)
+        if isempty(State.lastRunStarted)
+            elapsedText = '00:00';
+            elapsedSeconds = 0;
+        else
+            if ~isempty(State.lastRunFinished)
+                dt = State.lastRunFinished - State.lastRunStarted;
+            else
+                dt = datetime('now') - State.lastRunStarted;
+            end
+            elapsedSeconds = max(0, seconds(dt));
+            elapsedText = elapsedToText(elapsedSeconds);
+        end
+
+        phase = upper(string(State.runPhase));
+        if nargin > 0 && ~isempty(varargin{1}) && varargin{1}
+            fraction = 1.0;
+            fillColor = C.ready;
+        elseif phase == "GENERATING"
+            fraction = chargingFraction(elapsedSeconds, 18.0);
+            fillColor = C.busy;
+        elseif phase == "ASSOCIATING"
+            fraction = chargingFraction(elapsedSeconds, 28.0);
+            fillColor = C.accent;
+        elseif phase == "EXPORTING"
+            fraction = chargingFraction(elapsedSeconds, 8.0);
+            fillColor = C.accent2;
+        else
+            fraction = 0.0;
+            fillColor = C.railMuted;
+        end
+
+        setRuntimeBar(runMeter, fraction, elapsedText, fillColor, C);
+
+        if ~isempty(runMeter) && isfield(runMeter, 'Arc') && ...
+       isvalid(runMeter.Arc) && fraction > 0 && fraction < 1
+
+        % Incrementa l'angolo (velocità: 0.25 rad ogni 250ms = ~1.6 rpm)
+        runMeter.SpinAngle = runMeter.SpinAngle + 0.25;
+
+        arcSpan = runMeter.arcSpan;
+        theta   = linspace(runMeter.SpinAngle, runMeter.SpinAngle + arcSpan, 40);
+        runMeter.Arc.XData = cos(theta);
+        runMeter.Arc.YData = sin(theta);
+    end
+
+
+
+
+        drawnow limitrate;
+    end
+
+    function fraction = chargingFraction(elapsedSeconds, timeScale)
+        fraction = 0.04 + 0.91*(1 - exp(-elapsedSeconds/timeScale));
+        fraction = min(max(fraction, 0.04), 0.95);
+    end
+
+    function txt = currentElapsedText()
+        if isempty(State.lastRunStarted)
+            txt = '00:00';
+            return;
+        end
+
+        if isempty(State.lastRunFinished)
+            dt = datetime('now') - State.lastRunStarted;
+        else
+            dt = State.lastRunFinished - State.lastRunStarted;
+        end
+
+        txt = elapsedToText(max(0, seconds(dt)));
+    end
+
+    function txt = elapsedToText(elapsedSeconds)
+        s = max(0, floor(elapsedSeconds));
+        h = floor(s/3600);
+        m = floor(mod(s, 3600)/60);
+        sec = mod(s, 60);
+
+        if h > 0
+            txt = sprintf('%02d:%02d:%02d', h, m, sec);
+        else
+            txt = sprintf('%02d:%02d', m, sec);
+        end
+    end
+
+    function onClose(~, ~)
+        stopRunTimer(false);
+        delete(fig);
+    end
+
+    function appendLog(msg)
+        old = logBox.Value;
+        if ischar(old)
+            old = {old};
+        end
+
+        stamp = datestr(now, 'HH:MM:SS');
+        newLine = [stamp, '  ', msg];
+        lines = [old; {newLine}];
+
+        if numel(lines) > 120
+            lines = lines(end-119:end);
+        end
+
+        logBox.Value = lines;
+
+    end
+
+    function handleError(ME, showDialog)
+        setRailStatus('ERROR', C.error, C);
+        appendLog(['ERROR  ', ME.message]);
+
+        if showDialog
+            uialert(fig, getReport(ME, 'extended', 'hyperlinks', 'off'), 'NAPOLEON+ error');
+        end
+    end
+
+    function s = scenarioSubtitle()
+        s = sprintf('%d terminals | %s CSI | seed %d', ...
+            State.params.numUsers, char(string(State.params.CSImode)), State.params.seed);
+    end
+
+    function s = kpiSubtitle()
+        if isempty(State.RESULTS)
+            s = 'No KPI object';
+            return;
+        end
+
+        if isfield(State.RESULTS, 'KPI_results')
+            names = fieldnames(State.RESULTS.KPI_results);
+            s = sprintf('%d KPI fields detected', numel(names));
+        else
+            s = 'RESULTS.KPI_results not found';
+        end
+    end
+
+    function lines = composeSummaryLines()
+        lines = { ...
+            ['Scenario: ', ternary(State.scenarioGenerated, 'ready', 'empty')], ...
+            ['Association: ', ternary(State.associationCompleted, 'completed', 'not completed')], ...
+            ['Terminals: ', num2str(State.params.numUsers)], ...
+            ['CSI mode: ', char(string(State.params.CSImode))], ...
+            ['Policy: ', char(string(State.params.associationAlgorithm))], ...
+            ['Seed: ', num2str(State.params.seed)]};
+
+        if State.associationCompleted && isfield(State.RESULTS, 'KPI_results')
+            lines = [lines; {' '; 'KPI results:'}; structToLines(State.RESULTS.KPI_results)]; %#ok<AGROW>
+        end
+    end
+
+    function tuneURLLC()
+        if isempty(State.params)
+            State.params = State.defaultParams;
+        end
+        p = State.params.policy.URLLC;
+        d = modalWindow('URLLC Policy Tuning', C, [470 315 455 400]);
+
+        g = uigridlayout(d, [8 2]);
+        g.RowHeight = {42, 42, 42, 42, 42, 42, 12, 42};
+        g.ColumnWidth = {205, '1x'};
+        g.Padding = [20 20 20 20];
+        g.RowSpacing = 8;
+        g.BackgroundColor = C.bg;
+
+        modalHeader(g, 'URLLC policy', 'Latency-constrained association controls', C, fontName);
+        f1 = modalNumeric(g, 'Delta latency [s]', p.URLLC_DeltaTau_switch_s, C, fontName);
+        f2 = modalNumeric(g, 'Max latency [s]', p.latency_max_URLLC, C, fontName);
+        f3 = modalNumeric(g, 'Min SNR [linear]', p.SNRmin_URLLC_lin, C, fontName);
+        f4 = modalNumeric(g, 'Time window', p.time_window, C, fontName);
+        f5 = modalNumeric(g, 'Max handovers', p.handoverMax_URLLC, C, fontName);
+        spacer(g, C.bg, fontName); spacer(g, C.bg, fontName);
+
+        reset = flatButton(g, 'Default', C.cardAlt, C.text, fontName);
+        apply = flatButton(g, 'Apply', C.blueSoft, C.accent, fontName);
+
+        reset.ButtonPushedFcn = @(~,~) resetURLLC();
+        apply.ButtonPushedFcn = @(~,~) applyURLLC();
+
+        function resetURLLC()
+            q = default_NAPOLEON_params();
+            f1.Value = q.policy.URLLC.URLLC_DeltaTau_switch_s;
+            f2.Value = q.policy.URLLC.latency_max_URLLC;
+            f3.Value = q.policy.URLLC.SNRmin_URLLC_lin;
+            f4.Value = q.policy.URLLC.time_window;
+            f5.Value = q.policy.URLLC.handoverMax_URLLC;
+        end
+
+        function applyURLLC()
+            if State.associationCompleted
+                msg = 'Il cambiamento dei parametri renderà necessario performare nuovamente l''associazione. Tutti i risultati attuali verranno eliminati. Vuoi procedere?';
+                scelta = uiconfirm(d, msg, 'Attenzione', 'Options', {'Procedi', 'Annulla'}, ...
+                                   'DefaultOption', 2, 'CancelOption', 2, 'Icon', 'warning');
+                if strcmp(scelta, 'Annulla')
+                    return; 
+                end
+            end
+            
+            try
+                State.params.policy.URLLC.URLLC_DeltaTau_switch_s = f1.Value;
+                State.params.policy.URLLC.latency_max_URLLC = f2.Value;
+                State.params.policy.URLLC.SNRmin_URLLC_lin = f3.Value;
+                State.params.policy.URLLC.time_window = round(f4.Value);
+                State.params.policy.URLLC.handoverMax_URLLC = round(f5.Value);
+
+                validate_NAPOLEON_params(State.params);
+                appendLog('URLLC POLICY UPDATED');
+                State.RESULTS = [];
+                State.associationCompleted = false;
+                refreshUI('scenarioReady');
+                delete(d);
+            catch ME
+                uialert(d, ME.message, 'Invalid URLLC values');
+            end
+        end
+    end % <--- L'END CHE MANCAVA!
+
+    function tuneEMBB()
+        if isempty(State.params)
+            State.params = State.defaultParams;
+        end
+        p = State.params.policy.eMBB;
+        d = modalWindow('eMBB Policy Tuning', C, [470 335 455 360]);
+
+        g = uigridlayout(d, [7 2]);
+        g.RowHeight = {42, 42, 42, 42, 42, 12, 42};
+        g.ColumnWidth = {205, '1x'};
+        g.Padding = [20 20 20 20];
+        g.RowSpacing = 8;
+        g.BackgroundColor = C.bg;
+
+        modalHeader(g, 'eMBB policy', 'Throughput-constrained association controls', C, fontName);
+        f1 = modalNumeric(g, 'Delta rate [bit/s]', p.eMBB_DeltaR_switch_bps, C, fontName);
+        f2 = modalNumeric(g, 'Min rate [bit/s]', p.rateMin_eMBB_bps, C, fontName);
+        f3 = modalNumeric(g, 'Time window', p.time_window, C, fontName);
+        f4 = modalNumeric(g, 'Max handovers', p.handoverMax_eMBB, C, fontName);
+        spacer(g, C.bg, fontName); spacer(g, C.bg, fontName);
+
+        reset = flatButton(g, 'Default', C.cardAlt, C.text, fontName);
+        apply = flatButton(g, 'Apply', C.blueSoft, C.accent, fontName);
+
+        reset.ButtonPushedFcn = @(~,~) resetEMBB();
+        apply.ButtonPushedFcn = @(~,~) applyEMBB();
+        % QUI C'ERA L'END DI TROPPO CHE HO RIMOSSO!
+
+        function resetEMBB()
+            q = default_NAPOLEON_params();
+            f1.Value = q.policy.eMBB.eMBB_DeltaR_switch_bps;
+            f2.Value = q.policy.eMBB.rateMin_eMBB_bps;
+            f3.Value = q.policy.eMBB.time_window;
+            f4.Value = q.policy.eMBB.handoverMax_eMBB;
+        end
+
+        function applyEMBB()
+            if State.associationCompleted
+                msg = 'Changing the parameters will require performing the association again. All current results will be deleted. Do you want to proceed?';
+                scelta = uiconfirm(d, msg, 'Attenzione', 'Options', {'Procedi', 'Annulla'}, ...
+                                   'DefaultOption', 2, 'CancelOption', 2, 'Icon', 'warning');
+                if strcmp(scelta, 'Annulla')
+                    return; 
+                end
+            end
+            
+            try
+                State.params.policy.eMBB.eMBB_DeltaR_switch_bps = f1.Value;
+                State.params.policy.eMBB.rateMin_eMBB_bps = f2.Value;
+                State.params.policy.eMBB.time_window = round(f3.Value);
+                State.params.policy.eMBB.handoverMax_eMBB = round(f4.Value);
+
+                validate_NAPOLEON_params(State.params);
+                appendLog('eMBB POLICY UPDATED');
+                State.RESULTS = [];
+                State.associationCompleted = false;
+                refreshUI('scenarioReady');
+                delete(d);
+            catch ME
+                uialert(d, ME.message, 'Invalid eMBB values');
+            end
+        end
+    end % <--- QUESTO END CHIUDE CORRETTAMENTE tuneEMBB
+
+function launchViewer(~, ~)
+        % Salviamo il viewer nella memoria globale della GUI
+        State.viewer = satelliteScenarioViewer(State.SCENARIO.satelliteScenario);
+end
+
+
+
+function handleKPIClick(tabTitle, plotID)
+        % Questa funzione scatta quando clicchi un bottone KPI
+        
+        % 1. Creiamo una chiave sicura per la struct (sostituisce gli spazi, es. 'SNR Evol' -> 'SNR_Evol')
+        tabKey = matlab.lang.makeValidName(tabTitle); 
+        
+        % 2. Sicurezza: se il gruppo di schede non è stato creato (non siamo nello stato resultsReady), esce
+        if isempty(State.kpiTabGroup) || ~isgraphics(State.kpiTabGroup)
+            return;
+        end
+
+        State.kpiTabGroup.Visible = 'on';
+
+        canvasFooter.FontColor = C.text; % Cambia il colore del testo in normale (non più muted)
+        
+        updateFooterText(tabTitle);        
+        % Nascondiamo il testo segnaposto se presente
+        testoSegnaposto = findobj(State.kpiTabGroup.Parent, 'Tag', 'testoVuotoKPI');
+        if ~isempty(testoSegnaposto)
+            testoSegnaposto.Visible = 'off';
+        end
+        
+        if isfield(State.kpiTabs, tabKey) && isgraphics(State.kpiTabs.(tabKey))
+            State.kpiTabGroup.SelectedTab = State.kpiTabs.(tabKey);
+            return; 
+        end
+
+
+        testoSegnaposto = findobj(State.kpiTabGroup.Parent, 'Tag', 'testoVuotoKPI');
+        if ~isempty(testoSegnaposto)
+            testoSegnaposto.Visible = 'off';
+        end
+        
+        % 3. LOGICA A SCHEDE: Se la scheda è già stata aperta in precedenza, 
+        % la selezioniamo e basta (non ricalcoliamo il grafico!)
+        if isfield(State.kpiTabs, tabKey) && isgraphics(State.kpiTabs.(tabKey))
+            State.kpiTabGroup.SelectedTab = State.kpiTabs.(tabKey);
+            return; 
+        end
+        
+       % 4. ALTRIMENTI: Creiamo la nuova scheda FORZANDO LO SFONDO BIANCO
+        newTab = uitab(State.kpiTabGroup, 'Title', tabTitle);
+        newTab.BackgroundColor = [1 1 1]; % Sfondo bianco della scheda
+        State.kpiTabs.(tabKey) = newTab; 
+        
+        % 5. Griglia con Padding quasi a zero per FARE I GRAFICI PIÙ GRANDI POSSIBILI
+        tabGrid = uigridlayout(newTab, [1 1]);
+        tabGrid.Padding = [0 0 0 0]; % <--- Margini ridotti al minimo
+        tabGrid.BackgroundColor = [1 1 1]; % Sfondo bianco della griglia
+        
+        % Creiamo il nuovo asse dedicato
+        tabAx = uiaxes(tabGrid);
+        tabAx.Layout.Row = 1;
+        tabAx.Layout.Column = 1;
+        
+        % IMPOSTIAMO SUBITO COLORI CHIARE E ASSI NERI
+        tabAx.Color = [1 1 1];
+        tabAx.XColor = [0 0 0]; 
+        tabAx.YColor = [0 0 0]; 
+        tabAx.GridColor = [0.15 0.15 0.15]; 
+        tabAx.Box = 'off';
+        % 6. Spostiamo la visualizzazione sulla nuova scheda
+        State.kpiTabGroup.SelectedTab = newTab;
+        
+        % 7. CHIAMATA A PLOTNAPOLEONKPI
+         try
+            if plotID == "UserDistribution"
+                plotUserScenarioDistribution(State.SCENARIO.satelliteScenario, State.SCENARIO.configAoI, 'Axes', tabAx, 'ShowCityLabels', true, 'ShowUsers', true);
+            else
+                plotNAPOLEONKPI(State.RESULTS, State.SCENARIO, plotID, 'Axes', tabAx, 'LineWidth', 2);
+            end
+            tabAx.Box = 'off';
+            
+            % FORZA I TESTI NERI NELLA GUI
+            tabAx.Title.Color = 'k';
+            if ~isempty(tabAx.Subtitle)
+                tabAx.Subtitle.Color = 'k';
+            end
+            
+        catch ME
+            uialert(fig, sprintf('Impossibile generare il grafico "%s".\nMotivo: %s', tabTitle, ME.message), 'Avviso KPI');
+            delete(newTab);
+            State.kpiTabs = rmfield(State.kpiTabs, tabKey);
+            % Se il box è tornato vuoto a causa dell'errore, lo rinascondiamo
+            if isempty(State.kpiTabGroup.Children)
+                State.kpiTabGroup.Visible = 'off';
+            end
+        end
+end
+
+
+
+        function openUserInspector(~, ~)
+        % Sicurezza: esegui solo se ci sono risultati
+        if ~State.associationCompleted
+            uialert(fig, 'Run association first to inspect a user.', 'No Results');
+            return;
+        end
+
+        d = modalWindow('User Inspector', C, [100 100 900 650]);
+        movegui(d, 'center'); 
+        
+        mainGrid = uigridlayout(d, [4 1]);
+        mainGrid.RowHeight = {65, 45, '1x', 30};
+        mainGrid.Padding = [20 20 20 20];
+        mainGrid.BackgroundColor = C.bg;
+        
+        % 1. INTESTAZIONE INGRANDITA
+        headerGrid = uigridlayout(mainGrid, [2 1]);
+        headerGrid.Layout.Row = 1;
+        headerGrid.RowHeight = {30, 20};
+        headerGrid.Padding = [0 0 0 0];
+        headerGrid.RowSpacing = 2;
+        headerGrid.BackgroundColor = C.bg;
+        
+        uilabel(headerGrid, 'Text', 'User Inspector', 'FontName', fontName, 'FontSize', 24, 'FontWeight', 'bold', 'FontColor', C.text);
+        uilabel(headerGrid, 'Text', 'Inspect the evolution of specific KPIs for a single user', 'FontName', fontName, 'FontSize', 13, 'FontColor', C.muted);
+        
+        % 2. RIGA DEI CONTROLLI
+        ctrlGrid = uigridlayout(mainGrid, [1 5]);
+        ctrlGrid.Layout.Row = 2;
+        ctrlGrid.ColumnWidth = {'fit', 70, 160, 200, '1x'};
+        ctrlGrid.ColumnSpacing = 15;
+        ctrlGrid.Padding = [0 0 0 0];
+        ctrlGrid.BackgroundColor = C.bg;
+        
+        maxUsers = State.RESULTS.USER_SAT_association.numUsers;
+        labelText = sprintf('Insert the user id (from 1 to %d terminals):', maxUsers);
+        
+        uilabel(ctrlGrid, 'Text', labelText, 'FontName', fontName, 'FontColor', C.text, ...
+            'FontSize', 13, 'HorizontalAlignment', 'left', 'BackgroundColor', C.bg);
+        
+        uidField = uieditfield(ctrlGrid, 'numeric');
+        uidField.Value = 1;
+        uidField.Limits = [1, maxUsers];
+        uidField.RoundFractionalValues = 'on';
+        uidField.FontName = fontName;
+        uidField.FontSize = 13;
+        uidField.BackgroundColor = C.card; 
+        uidField.FontColor = C.text;
+        
+        btnRate = flatButton(ctrlGrid, 'Rate Evolution', C.blueSoft, C.accent, fontName);
+        btnState = flatButton(ctrlGrid, 'Service State Evolution', C.blueSoft, C.accent, fontName);
+        
+        % 3. CONTENITORE GRAFICI GIA' VISIBILE
+        tabGroup = uitabgroup(mainGrid);
+        tabGroup.Layout.Row = 3;
+        % Appena si cambia scheda, aggiorna il testo descrittivo
+        tabGroup.SelectionChangedFcn = @(src, event) updateDescLabel(event.NewValue);
+        
+        userTabs = struct(); % Memoria delle schede aperte
+        
+        % Scheda provvisoria di benvenuto
+        placeholderTab = uitab(tabGroup, 'Title', 'Waiting for User');
+        placeholderTab.BackgroundColor = [1 1 1];
+        placeholderGrid = uigridlayout(placeholderTab, [1 1]);
+        placeholderGrid.BackgroundColor = [1 1 1];
+        uilabel(placeholderGrid, 'Text', 'Insert a User ID and click a button above to generate a plot.', ...
+            'FontName', fontName, 'FontSize', 14, 'FontColor', C.muted, ...
+            'HorizontalAlignment', 'center', 'BackgroundColor', [1 1 1]);
+            
+        % 4. TESTO DESCRITTIVO SOTTO IL PLOT
+        descLabel = uilabel(mainGrid, 'Text', '', 'FontName', fontName, 'FontSize', 13, ...
+            'FontColor', C.muted, 'HorizontalAlignment', 'center', 'BackgroundColor', C.bg);
+        descLabel.Layout.Row = 4;
+        
+        % Aggiorna la scritta in base alla scheda
+        function updateDescLabel(selectedTab)
+            if ~isempty(selectedTab) && ~isempty(selectedTab.UserData)
+                descLabel.Text = selectedTab.UserData;
+            else
+                descLabel.Text = '';
+            end
+        end
+        
+        % Callback dei due bottoni
+        btnRate.ButtonPushedFcn = @(src, event) doPlotUser(uidField.Value, 'userRateEvolution', 'Rate', 'Rate Evolution', 'Instantaneous allocated throughput over time.');
+        btnState.ButtonPushedFcn = @(src, event) doPlotUser(uidField.Value, 'userServiceStateEvolution', 'State', 'Service State Evolution', 'Handover Event (cumulative) over time.');
+        
+        function doPlotUser(uid, plotType, tabKey, titleStr, descStr)
+            % Elimina la scheda di benvenuto se è ancora lì
+            if isgraphics(placeholderTab)
+                delete(placeholderTab);
+            end
+            
+            % Ricicla la scheda (se l'avevi già aperta per questo KPI) oppure creala
+            if isfield(userTabs, tabKey) && isgraphics(userTabs.(tabKey))
+                thisTab = userTabs.(tabKey);
+                thisTab.Title = sprintf('%s (User %d)', titleStr, uid);
+                delete(thisTab.Children); % Elimina solo il grafico vecchio
+            else
+                thisTab = uitab(tabGroup, 'Title', sprintf('%s (User %d)', titleStr, uid));
+                thisTab.BackgroundColor = [1 1 1];
+                userTabs.(tabKey) = thisTab;
+            end
+            
+            % Salva la descrizione dentro la scheda stessa
+            thisTab.UserData = descStr;
+            
+            % Mettiamo in primo piano questa scheda
+            tabGroup.SelectedTab = thisTab;
+            
+            % Griglia senza margini
+            tabGrid = uigridlayout(thisTab, [1 1]);
+            tabGrid.Padding = [0 0 0 0];
+            tabGrid.BackgroundColor = [1 1 1];
+            
+            % Nuovo asse per il plot
+            ax = uiaxes(tabGrid);
+            ax.Color = [1 1 1];
+            ax.XColor = [0 0 0]; 
+            ax.YColor = [0 0 0]; 
+            ax.GridColor = [0.15 0.15 0.15]; 
+            ax.Box = 'off';
+            
+            % Aggiorna subito il testo in basso per la nuova scheda
+            updateDescLabel(thisTab);
+            
+            % Disegna il grafico
+            try
+                plotNAPOLEONKPI(State.RESULTS, State.SCENARIO, plotType, 'UserIndex', uid, 'Axes', ax);
+                % Forza i colori neri per un look pulito
+                ax.Title.Color = 'k'; 
+                if ~isempty(ax.Subtitle)
+                    ax.Subtitle.Color = 'k';
+                end
+                ax.XLabel.Color = 'k'; 
+                ax.YLabel.Color = 'k'; 
+                ax.Box = 'off';
+            catch ME
+                uialert(d, sprintf('Error plotting user %d:\n%s', uid, ME.message), 'Error');
+            end
+        end
+    end
+    
+    
+    
+    
+        function updateDynamicKPIButtons(enabledFlag, policy)
+        % 1. Gestione Tasti 1 e 2 (User Dist. & View Const.): Accesi in scenario e results
+        for j = 1:2
+            if enabledFlag == "scenario" || enabledFlag == "results"
+                kpiBtns(j).Enable = 'on';
+                kpiBtns(j).BackgroundColor = C.blueSoft;
+                kpiBtns(j).FontColor = C.accent;
+            else
+                kpiBtns(j).Enable = 'off';
+                kpiBtns(j).BackgroundColor = C.neutralSoft;
+                kpiBtns(j).FontColor = C.disabled;
+            end
+        end
+        
+        % 2. Gestione Tasti KPI Fissi (da 3 a 8): Accesi SOLO in results
+        for j = 3:8
+            if enabledFlag == "results"
+                kpiBtns(j).Enable = 'on';
+                kpiBtns(j).BackgroundColor = C.blueSoft;
+                kpiBtns(j).FontColor = C.accent;
+            else
+                kpiBtns(j).Enable = 'off';
+                kpiBtns(j).BackgroundColor = C.neutralSoft;
+                kpiBtns(j).FontColor = C.disabled;
+            end
+        end
+        
+        % 3. Gestione Tasti Dinamici (9 e 10)
+                % 3. Gestione Tasti Dinamici (9 e 10)
+        if policy == "URLLC"
+            kpiBtns(9).Text = 'URLLC Percentile';
+            kpiBtns(9).ButtonPushedFcn = @(src, event) handleKPIClick('URLLC Percentile', 'URLLC_latency90');
+            kpiBtns(9).Visible = 'on';
+            
+            kpiBtns(10).Text = 'URLLC TCR';
+            kpiBtns(10).ButtonPushedFcn = @(src, event) handleKPIClick('URLLC TCR', 'URLLC_TCR');
+            kpiBtns(10).Visible = 'on';
+        elseif policy == "eMBB"
+            kpiBtns(9).Text = 'eMBB SE';
+            kpiBtns(9).ButtonPushedFcn = @(src, event) handleKPIClick('eMBB SE', 'eMBB_spectralEfficiency');
+            kpiBtns(9).Visible = 'on';
+            
+            kpiBtns(10).Text = 'eMBB TCR';
+            kpiBtns(10).ButtonPushedFcn = @(src, event) handleKPIClick('eMBB TCR', 'eMBB_TCR');
+            kpiBtns(10).Visible = 'on';
+        else
+            kpiBtns(9).Visible = 'off';
+            kpiBtns(10).Visible = 'off';
+        end
+
+        % FINALMENTE: Li rendiamo cliccabili e blu se ci sono i risultati!
+        for j = 9:10
+            if enabledFlag == "results"
+                kpiBtns(j).Enable = 'on';
+                kpiBtns(j).BackgroundColor = C.blueSoft;
+                kpiBtns(j).FontColor = C.accent;
+            else
+                kpiBtns(j).Enable = 'off';
+                kpiBtns(j).BackgroundColor = C.neutralSoft;
+                kpiBtns(j).FontColor = C.disabled;
+            end
+        end
+    end
+
+
+
+function updateFooterText(tabTitle)
+        canvasFooter.FontColor = C.text;
+        switch tabTitle
+            case 'User Dist.'
+                canvasFooter.Text = 'User Distribution: 3D map showing the actual terminal positions extracted from the generated scenario.';
+            case 'SNR Evol'
+                canvasFooter.Text = 'SNR Evolution: Shows the time evolution of the average signal-to-noise ratio (SNR) of active links.';
+            case 'Rate CDF'
+                canvasFooter.Text = 'Rate Fairness CDF: Represents the Cumulative Distribution Function (CDF) of the average bitrate per user.';
+            case 'Throughput'
+                canvasFooter.Text = 'Throughput Evolution: Shows the evolution of the average throughput per terminal (in Mbit/s).';
+            case 'Handovers'
+                canvasFooter.Text = 'Total Handovers Evolution: Tracks the aggregated total number of handover events performed.';
+            case 'Served Users'
+                canvasFooter.Text = 'Served Users Fraction Evolution: Shows the instantaneous percentage of ground users successfully covered.';
+            case 'HO Freq CDF'
+                canvasFooter.Text = 'Handover Frequency CDF: Shows the statistical distribution of the handover frequency per user (HO/s).';
+            case 'eMBB SE'
+                canvasFooter.Text = 'eMBB Spectral Efficiency: Represents the aggregated spectral efficiency of the system (bit/s/Hz).';
+            case 'eMBB TCR'
+                canvasFooter.Text = 'eMBB TCR: Represents the Target Code Rate (TCR) evolution over time for the active links.';
+            case 'URLLC Percentile'
+                canvasFooter.Text = 'URLLC 90th Percentile Latency: Monitors the trend of the 90th percentile of packet latency.';
+            case 'URLLC TCR'
+                canvasFooter.Text = 'URLLC TCR: Represents the Target Code Rate (TCR) evolution over time for the active URLLC links.';
+            otherwise
+                canvasFooter.Text = '';
+        end
+    end
+
+
+
+
+
+
+
+
+
+
+
+end
+
+%% THEME AND UI FUNCTIONS
+
+function C = atlasTheme()
+    C.bg          = [0.935 0.950 0.990];
+    C.card        = [1.000 1.000 1.000];
+    C.cardAlt     = [0.955 0.970 0.990];
+    C.canvas      = [0.965 0.982 1.000];
+    C.table1      = [1.000 1.000 1.000];
+    C.table2      = [0.960 0.972 0.990];
+
+    C.rail        = [0.028 0.055 0.090];
+    C.railStatusBg = [0.055 0.090 0.140];
+    C.railButton  = [0.070 0.112 0.170];
+    C.railLog     = [0.020 0.040 0.066];
+    C.railText    = [0.930 0.960 1.000];
+    C.railMuted   = [0.560 0.650 0.760];
+    C.railDisabled = [0.360 0.430 0.515];
+
+    C.text        = [0.060 0.085 0.125];
+    C.muted       = [0.380 0.430 0.500];
+    C.disabled    = [0.600 0.650 0.720];
+
+    C.accent      = [0.000 0.315 0.760];
+    C.accent2     = [0.020 0.560 0.820];
+    C.accentRail  = [0.440 0.800 1.000];
+
+    C.ready       = [0.060 0.580 0.320];
+    C.busy        = [0.890 0.480 0.060];
+    C.warnText    = [0.720 0.430 0.000];
+    C.error       = [0.780 0.110 0.180];
+
+    C.blueSoft    = [0.885 0.935 1.000];
+    C.greenSoft   = [0.890 0.970 0.925];
+    C.warnSoft    = [1.000 0.955 0.850];
+    C.redSoft     = [1.000 0.910 0.920];
+    C.neutralSoft = [0.940 0.950 0.965];
+
+    C.grid        = [0.800 0.850 0.910];
+    C.axis        = [0.500 0.560 0.640];
+end
+
+function f = preferredFont()
+    fonts = listfonts;
+    candidates = {'Aptos', 'Segoe UI', 'SF Pro Display', 'Helvetica Neue', 'Helvetica', 'Arial'};
+    f = 'Arial';
+
+    for k = 1:numel(candidates)
+        if any(strcmpi(fonts, candidates{k}))
+            f = candidates{k};
+            return;
+        end
+    end
+end
+
+function p = atlasCard(parent, C)
+    p = uipanel(parent, ...
+        'BackgroundColor', C.card, ...
+        'BorderType', 'none');
+end
+
+function b = railButton(parent, txt, bg, fg, fontName)
+    b = uibutton(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'BackgroundColor', bg, ...
+        'FontColor', fg);
+end
+
+function b = flatButton(parent, txt, bg, fg, fontName)
+    b = uibutton(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'BackgroundColor', bg, ...
+        'FontColor', fg);
+end
+
+function lab = railStatus(parent, txt, C, fontName)
+    lab = uilabel(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold', ...
+        'HorizontalAlignment', 'center', ...
+        'BackgroundColor', C.railStatusBg, ...
+        'FontColor', C.railMuted);
+end
+
+function railDivider(parent, C, fontName, txt)
+    uilabel(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.railMuted, ...
+        'BackgroundColor', C.rail, ...
+        'HorizontalAlignment', 'left');
+end
+
+function field = railInputRowText(parent, labelText, value, C, fontName)
+    g = uigridlayout(parent, [1 2]);
+    g.ColumnWidth = {118, '1x'};
+    g.ColumnSpacing = 6;
+    g.Padding = [0 0 0 0];
+    g.BackgroundColor = C.rail;
+
+    uilabel(g, ...
+        'Text', labelText, ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.railMuted, ...
+        'BackgroundColor', C.railStatusBg, ...
+        'HorizontalAlignment', 'center');
+
+    field = uieditfield(g, 'text', ...
+        'Value', value, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontColor', C.railText, ...
+        'BackgroundColor', C.railButton);
+end
+
+function field = railInputRowNumeric(parent, labelText, value, C, fontName)
+    g = uigridlayout(parent, [1 2]);
+    g.ColumnWidth = {118, '1x'};
+    g.ColumnSpacing = 6;
+    g.Padding = [0 0 0 0];
+    g.BackgroundColor = C.rail;
+
+    uilabel(g, ...
+        'Text', labelText, ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.railMuted, ...
+        'BackgroundColor', C.railStatusBg, ...
+        'HorizontalAlignment', 'center');
+
+    field = uieditfield(g, 'numeric', ...
+        'Value', value, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontColor', C.railText, ...
+        'BackgroundColor', C.railButton);
+end
+
+function drop = railInputRowDrop(parent, labelText, items, value, C, fontName)
+    g = uigridlayout(parent, [1 2]);
+    g.ColumnWidth = {118, '1x'};
+    g.ColumnSpacing = 6;
+    g.Padding = [0 0 0 0];
+    g.BackgroundColor = C.rail;
+
+    uilabel(g, ...
+        'Text', labelText, ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.railMuted, ...
+        'BackgroundColor', C.railStatusBg, ...
+        'HorizontalAlignment', 'center');
+
+    drop = uidropdown(g, ...
+        'Items', items, ...
+        'Value', value, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontColor', C.railText, ...
+        'BackgroundColor', C.railButton);
+end
+
+function panelTitle(parent, txt, C, fontName)
+    uilabel(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 13, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.card);
+end
+
+function panelCaption(parent, txt, C, fontName)
+    uilabel(parent, ...
+        'Text', txt, ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.card);
+end
+
+function field = inputRowNumeric(parent, labelText, value, C, fontName)
+    g = uigridlayout(parent, [1 2]);
+    g.ColumnWidth = {150, '1x'};
+    g.ColumnSpacing = 0;
+    g.Padding = [0 0 0 0];
+    g.BackgroundColor = C.card;
+
+    uilabel(g, ...
+        'Text', labelText, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.cardAlt, ...
+        'HorizontalAlignment', 'center');
+
+    field = uieditfield(g, 'numeric', ...
+        'Value', value, ...
+        'FontName', fontName, ...
+        'FontSize', 12, ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.card);
+end
+
+function drop = inputRowDrop(parent, labelText, items, value, C, fontName)
+    g = uigridlayout(parent, [1 2]);
+    g.ColumnWidth = {150, '1x'};
+    g.ColumnSpacing = 0;
+    g.Padding = [0 0 0 0];
+    g.BackgroundColor = C.card;
+
+    uilabel(g, ...
+        'Text', labelText, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.cardAlt, ...
+        'HorizontalAlignment', 'center');
+
+    drop = uidropdown(g, ...
+        'Items', items, ...
+        'Value', value, ...
+        'FontName', fontName, ...
+        'FontSize', 12, ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.card);
+end
+
+function H = ribbonBadge(parent, title, value, bg, fg, C, fontName)
+    b = uibutton(parent, 'push', ...
+        'Text', composeActionText(title, value), ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontWeight', 'bold', ...
+        'BackgroundColor', bg, ...
+        'FontColor', fg);
+
+    H.Button = b;
+    H.Title = title;
+    H.Value = value;
+end
+
+function setRibbonBadge(H, title, value, bg, fg)
+    H.Button.Text = composeActionText(title, value);
+    H.Button.BackgroundColor = bg;
+    H.Button.FontColor = fg;
+end
+
+function txt = composeActionText(title, value)
+    txt = sprintf('%s\n%s', upper(char(string(title))), upper(char(string(value))));
+end
+
+function enableAction(H, enabled)
+    if enabled
+        H.Button.Enable = 'on';
+    else
+        H.Button.Enable = 'off';
+    end
+end
+
+function H = runtimeBar(parent, C, fontName)
+    p = uipanel(parent, 'BackgroundColor', [1 1 1], 'BorderType', 'none');
+    
+    % Layout principale: 2 righe x 2 colonne
+    g = uigridlayout(p, [2 2]);
+    g.RowHeight = {16, 26};
+    g.ColumnWidth = {'1x', 55}; % La barra prende lo spazio rimasto, il timer 55px
+    g.Padding = [12 8 12 8];
+    g.RowSpacing = 4;
+    g.ColumnSpacing = 10;
+    g.BackgroundColor = [1 1 1];
+    
+    % Titolo (occupa entrambe le colonne in alto)
+    titleLbl = uilabel(g, 'Text', 'RUN TIME / ELAPSED', 'FontName', fontName, ...
+        'FontSize', 10, 'FontWeight', 'bold', 'FontColor', C.muted, ...
+        'BackgroundColor', [1 1 1], 'HorizontalAlignment', 'left');
+    titleLbl.Layout.Row = 1;
+    titleLbl.Layout.Column = [1 2];
+    
+    % Sfondo della progress bar (binario grigio chiaro)
+    trackBox = uipanel(g, 'BackgroundColor', [0.9 0.92 0.95], 'BorderType', 'none');
+    trackBox.Layout.Row = 2;
+    trackBox.Layout.Column = 1;
+    
+    % Griglia interna per gestire la percentuale di riempimento della barra
+    trackGrid = uigridlayout(trackBox, [1 2]);
+    trackGrid.Padding = [0 0 0 0];
+    trackGrid.ColumnSpacing = 0;
+    trackGrid.RowHeight = {'1x'};
+    trackGrid.ColumnWidth = {0, '1x'}; % Inizialmente vuota (0%)
+    trackGrid.BackgroundColor = [0.9 0.92 0.95];
+    
+    % La barra vera e propria che si colora
+    fillBar = uipanel(trackGrid, 'BackgroundColor', C.busy, 'BorderType', 'none');
+    fillBar.Layout.Row = 1;
+    fillBar.Layout.Column = 1;
+    
+    % Testo del timer a destra della barra
+    valueLbl = uilabel(g, 'Text', '00:00', 'FontName', fontName, ...
+        'FontSize', 16, 'FontWeight', 'bold', 'FontColor', C.muted, ...
+        'BackgroundColor', [1 1 1], 'HorizontalAlignment', 'right');
+    valueLbl.Layout.Row = 2;
+    valueLbl.Layout.Column = 2;
+    
+    H.Panel = p;
+    H.Grid = g;
+    H.Title = titleLbl;
+    H.TrackBox = trackBox;
+    H.TrackGrid = trackGrid;
+    H.FillBar = fillBar;
+    H.Value = valueLbl;
+end
+
+function setRuntimeBar(H, fraction, elapsedText, fillColor, C)
+    H.Value.Text = elapsedText;
+    
+    bgIdle  = [1 1 1];
+    bgBusy  = [1.000 0.950 0.880];
+    bgReady = C.greenSoft;
+    bgError = C.redSoft;
+    
+    % Determina lo sfondo del pannello contenitore
+    if isequal(fillColor, C.ready)
+        bg = bgReady;
+    elseif isequal(fillColor, C.error)
+        bg = bgError;
+    elseif isequal(fillColor, C.railMuted)
+        bg = bgIdle;
+    else
+        bg = bgBusy;
+    end
+    
+    % Protezione sui limiti matematici
+    fraction = max(0, min(1, fraction));
+    
+    if isequal(fillColor, C.railMuted)
+        % Svuota la barra quando viene azzerata/resettata
+        H.TrackGrid.ColumnWidth = {0, '1x'}; 
+        H.Value.FontColor = C.muted;
+        H.Title.FontColor = C.muted;
+    else
+        % Trucco UX: Appena parte, forza la barra a un minimo del 2% visibile
+        % così capisci subito a colpo d'occhio che è in elaborazione.
+        if isequal(fillColor, C.busy) && fraction < 0.02
+            fraction = 0.02;
+        end
+        
+        % Colora la barra (arancione quando carica, verde quando ha finito)
+        H.FillBar.BackgroundColor = fillColor;
+        H.Value.FontColor = fillColor;
+        H.Title.FontColor = C.muted;
+        
+        % Calcola le proporzioni per riempire la barra (sicuro su tutti i MATLAB)
+        w1 = round(fraction * 1000);
+        w2 = 1000 - w1;
+        
+        if w1 == 0
+            H.TrackGrid.ColumnWidth = {0, '1x'};
+        elseif w2 == 0
+            H.TrackGrid.ColumnWidth = {'1x', 0};
+        else
+            H.TrackGrid.ColumnWidth = {sprintf('%dx', w1), sprintf('%dx', w2)};
+        end
+    end
+    
+    % Applica i colori di sfondo
+    H.Panel.BackgroundColor = bg;
+    H.Grid.BackgroundColor = bg;
+    H.Title.BackgroundColor = bg;
+    H.Value.BackgroundColor = bg;
+end
+function M = metricStrip(parent, titleText, valueText, subtitleText, C, fontName)
+    p = uipanel(parent, ...
+        'BackgroundColor', C.cardAlt, ...
+        'BorderType', 'none');
+
+    g = uigridlayout(p, [3 1]);
+    g.RowHeight = {18, 28, 18};
+    g.Padding = [14 8 14 8];
+    g.RowSpacing = 0;
+    g.BackgroundColor = C.cardAlt;
+
+    title = uilabel(g, ...
+        'Text', upper(titleText), ...
+        'FontName', fontName, ...
+        'FontSize', 9, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.accent, ...
+        'BackgroundColor', C.cardAlt);
+
+    value = uilabel(g, ...
+        'Text', valueText, ...
+        'FontName', fontName, ...
+        'FontSize', 19, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.cardAlt);
+
+    sub = uilabel(g, ...
+        'Text', subtitleText, ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.cardAlt);
+
+    M.Panel = p;
+    M.Title = title;
+    M.Value = value;
+    M.Subtitle = sub;
+end
+
+function H = workflowTile(parent, num, label, state, C, fontName)
+    p = uipanel(parent, ...
+        'BackgroundColor', C.cardAlt, ...
+        'BorderType', 'none');
+
+    g = uigridlayout(p, [2 2]);
+    g.RowHeight = {34, 24};
+    g.ColumnWidth = {56, '1x'};
+    g.Padding = [12 10 12 10];
+    g.RowSpacing = 0;
+    g.BackgroundColor = C.cardAlt;
+
+    n = uilabel(g, ...
+        'Text', num, ...
+        'FontName', fontName, ...
+        'FontSize', 19, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.accent, ...
+        'BackgroundColor', C.cardAlt);
+    n.Layout.Row = [1 2];
+    n.Layout.Column = 1;
+
+    l = uilabel(g, ...
+        'Text', label, ...
+        'FontName', fontName, ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.cardAlt);
+    l.Layout.Row = 1;
+    l.Layout.Column = 2;
+
+    s = uilabel(g, ...
+        'Text', upper(state), ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.cardAlt);
+    s.Layout.Row = 2;
+    s.Layout.Column = 2;
+
+    H.Panel = p;
+    H.Num = n;
+    H.Label = l;
+    H.State = s;
+
+    H = setWorkflowTile(H, num, label, state, C);
+end
+
+function H = setWorkflowTile(H, num, label, state, C)
+    H.Num.Text = num;
+    H.Label.Text = label;
+    H.State.Text = upper(state);
+
+    switch lower(state)
+        case 'done'
+            H.Panel.BackgroundColor = C.greenSoft;
+            H.Num.FontColor = C.ready;
+            H.State.FontColor = C.ready;
+        case 'ready'
+            H.Panel.BackgroundColor = C.blueSoft;
+            H.Num.FontColor = C.accent;
+            H.State.FontColor = C.accent;
+        case 'stale'
+            H.Panel.BackgroundColor = C.warnSoft;
+            H.Num.FontColor = C.warnText;
+            H.State.FontColor = C.warnText;
+        case 'locked'
+            H.Panel.BackgroundColor = C.neutralSoft;
+            H.Num.FontColor = C.disabled;
+            H.State.FontColor = C.disabled;
+        otherwise
+            H.Panel.BackgroundColor = C.cardAlt;
+            H.Num.FontColor = C.accent;
+            H.State.FontColor = C.muted;
+    end
+
+    H.Label.BackgroundColor = H.Panel.BackgroundColor;
+    H.Num.BackgroundColor = H.Panel.BackgroundColor;
+    H.State.BackgroundColor = H.Panel.BackgroundColor;
+end
+
+function enableButton(btn, enabled, C, style)
+    if enabled
+        btn.Enable = 'on';
+        switch style
+            case 'railAccent'
+                btn.BackgroundColor = C.accentRail;
+                btn.FontColor = C.rail;
+            case 'rail'
+                btn.BackgroundColor = C.railButton;
+                btn.FontColor = C.railText;
+            otherwise
+                btn.BackgroundColor = C.blueSoft;
+                btn.FontColor = C.accent;
+        end
+    else
+        btn.Enable = 'off';
+        switch style
+            case {'railAccent', 'rail'}
+                btn.BackgroundColor = C.railButton;
+                btn.FontColor = C.railDisabled;
+            otherwise
+                btn.BackgroundColor = C.cardAlt;
+                btn.FontColor = C.disabled;
+        end
+    end
+end
+
+function clearAtlasMap(ax, C)
+    cla(ax);
+    ax.Visible = 'off';
+    ax.Color = C.card;
+    ax.XTick = [];
+    ax.YTick = [];
+    ax.XTickLabel = [];
+    ax.YTickLabel = [];
+    ax.Box = 'off';
+    grid(ax, 'off');
+    xlabel(ax, '');
+    ylabel(ax, '');
+end
+
+
+function data = referenceSetupData(params)
+    if isempty(params)
+        data = { ...
+            'CONST', 'Planes',            '72',      '-'; ...
+            'CONST', 'Sats/plane',       '22',      '-'; ...
+            'CONST', 'Altitude',         '540',     'km'; ...
+            'CONST', 'Inclination',      '53.2',    'deg'; ...
+            'CONST', 'Phasing',          '17',      '-'; ...
+            'AOI',   'Lat range',        '35..60',  'deg'; ...
+            'AOI',   'Lon range',        '-10..30', 'deg'; ...
+            'AOI',   'Grid step',        '2 x 2',   'deg'; ...
+            'RADIO', 'Carrier',          '2',       'GHz'; ...
+            'RADIO', 'Bandwidth',        '5',       'MHz'; ...
+            'RADIO', 'Sat power',        '1',       'W'; ...
+            'RADIO', 'Sat gain',         '50',      'dBi'; ...
+            'RADIO', 'User gain',        '0',       'dBi'; ...
+            'RADIO', 'System temp.',     '290',     'K'; ...
+            'RADIO', 'Min elevation',    '25',      'deg'; ...
+            'RUN',   'Terminals',        '--',      '-'; ...
+            'RUN',   'CSI',              '--',      '-'; ...
+            'RUN',   'Policy',           '--',      '-'; ...
+            'RUN',   'Seed',             '--',      '-'};
+        return;
+    end
+
+    data = { ...
+        'CONST', 'Planes',            num2str(params.constellation.planes),              '-'; ...
+        'CONST', 'Sats/plane',       num2str(params.constellation.satellitesPerPlane),  '-'; ...
+        'CONST', 'Altitude',         num2str(params.constellation.altitude_km),         'km'; ...
+        'CONST', 'Inclination',      num2str(params.constellation.inclination_deg),     'deg'; ...
+        'CONST', 'Phasing',          num2str(params.constellation.phasingParam),        '-'; ...
+        'AOI',   'Lat range',        sprintf('%g..%g', params.AoI.latMin, params.AoI.latMax),  'deg'; ...
+        'AOI',   'Lon range',        sprintf('%g..%g', params.AoI.lonMin, params.AoI.lonMax),  'deg'; ...
+        'AOI',   'Grid step',        sprintf('%g x %g', params.AoI.deltaLat, params.AoI.deltaLon), 'deg'; ...
+        'RADIO', 'Carrier',          sprintf('%.6g', params.channel.carrierFrequency_Hz/1e9), 'GHz'; ...
+        'RADIO', 'Bandwidth',        sprintf('%.6g', params.channel.bandwidth_Hz/1e6),        'MHz'; ...
+        'RADIO', 'Sat power',        sprintf('%.6g', params.channel.satellitePower_W),        'W'; ...
+        'RADIO', 'Sat gain',         sprintf('%.6g', params.channel.satelliteGain_dBi),       'dBi'; ...
+        'RADIO', 'User gain',        sprintf('%.6g', params.channel.userGain_dBi),            'dBi'; ...
+        'RADIO', 'System temp.',     sprintf('%.6g', params.channel.systemTemperature_K),     'K'; ...
+        'RADIO', 'Min elevation',    sprintf('%.6g', params.minimumElevation_deg),            'deg'; ...
+        'RUN',   'Terminals',        num2str(params.numUsers),                                '-'; ...
+        'RUN',   'CSI',              char(string(params.CSImode)),                            '-'; ...
+        'RUN',   'Policy',           char(string(params.associationAlgorithm)),                '-'; ...
+        'RUN',   'Seed',             num2str(params.seed),                                    '-'};
+
+    switch string(params.associationAlgorithm)
+        case "URLLC"
+            data = [data; { ...
+                'URLLC', 'Δ latency HO',   sprintf('%.3g', params.policy.URLLC.URLLC_DeltaTau_switch_s), 's'; ...
+                'URLLC', 'Max latency',    sprintf('%.3g', params.policy.URLLC.latency_max_URLLC),       's'; ...
+                'URLLC', 'Min SNR',        sprintf('%.6g', params.policy.URLLC.SNRmin_URLLC_lin),        'linear'; ...
+                'URLLC', 'Time window',    num2str(params.policy.URLLC.time_window),                    'samples'; ...
+                'URLLC', 'Max HO',         num2str(params.policy.URLLC.handoverMax_URLLC),              '-'}];
+
+        case "eMBB"
+            data = [data; { ...
+                'eMBB',  'Δ rate HO',      sprintf('%.6g', params.policy.eMBB.eMBB_DeltaR_switch_bps),  'bit/s'; ...
+                'eMBB',  'Min rate',       sprintf('%.6g', params.policy.eMBB.rateMin_eMBB_bps),        'bit/s'; ...
+                'eMBB',  'Time window',    num2str(params.policy.eMBB.time_window),                    'samples'; ...
+                'eMBB',  'Max HO',         num2str(params.policy.eMBB.handoverMax_eMBB),               '-'}];
+    end
+end
+
+function data = kpiTableData(RESULTS, params)
+    % CREIAMO LA NOSTRA INTESTAZIONE CHIARA
+    rows = {'Metric', 'Value', 'Unit'}; 
+
+    if isempty(RESULTS) || ~isfield(RESULTS, 'KPI_results')
+        rows(end+1,:) = {'No KPI data', '-', '-'};
+    else
+        K = RESULTS.KPI_results;
+        if ~isfield(K, 'generalKPIs')
+            rows(end+1,:) = {'generalKPIs not found', '-', '-'};
+        else
+            G = K.generalKPIs;
+            has_data = false;
+
+            if isfield(G, 'SNR') && isfield(G.SNR, 'globalAvgUserSNR_dB')
+                v = G.SNR.globalAvgUserSNR_dB;
+                if isnumeric(v) && isscalar(v)
+                    rows(end+1,:) = {'Avg User SNR', sprintf('%.2f', v), 'dB'};
+                    has_data = true;
+                end
+            end
+
+            if isfield(G, 'throughput') && isfield(G.throughput, 'globalAvgUserRate_Mbps')
+                v = G.throughput.globalAvgUserRate_Mbps;
+                if isnumeric(v) && isscalar(v)
+                    rows(end+1,:) = {'Avg User Rate', sprintf('%.3f', v), 'Mbps'};
+                    has_data = true;
+                end
+            end
+
+            if isfield(G, 'throughput') && isfield(G.throughput, 'globalAvgUserRate_bpsHz')
+                v = G.throughput.globalAvgUserRate_bpsHz;
+                if isnumeric(v) && isscalar(v)
+                    rows(end+1,:) = {' Avg User Spectral Efficiency', sprintf('%.4f', v), 'b/s/Hz'};
+                    has_data = true;
+                end
+            end
+
+            if ~isempty(params) && isfield(params, 'associationAlgorithm') && ...
+               strcmpi(string(params.associationAlgorithm), 'URLLC')
+                if isfield(K, 'specificURLLC') && isfield(K.specificURLLC, 'PL_URLLC_global')
+                    v = K.specificURLLC.PL_URLLC_global;
+                    if isnumeric(v) && isscalar(v)
+                        rows(end+1,:) = {'URLLC 90th Percentile', sprintf('%.4f', v), 'ms'};
+                        has_data = true;
+                    end
+                end
+            end
+
+            if ~has_data
+                rows(end+1,:) = {'No valid KPI fields', '-', '-'};
+            end
+        end
+    end
+    
+    % Riempiamo esattamente fino a 11 righe (così non compare lo scrollbar!)
+    righe_totali = size(rows, 1);
+    if righe_totali < 11
+        righe_vuote = cell(11 - righe_totali, 3);
+        righe_vuote(:) = {''}; 
+        rows = [rows; righe_vuote];
+    end
+    
+    data = rows;
+end
+
+function data = serviceComplianceData(RESULTS, params)
+    if isempty(params)
+        data = {'Policy', '--', '--', 'waiting'};
+        return;
+    end
+
+    if isempty(RESULTS) || ~isfield(RESULTS, 'KPI_results')
+        switch string(params.associationAlgorithm)
+            case "URLLC"
+                data = { ...
+                    'Latency', sprintf('%.3g s', params.policy.URLLC.latency_max_URLLC), '--', 'pending'; ...
+                    'SNR',     sprintf('%.6g lin', params.policy.URLLC.SNRmin_URLLC_lin), '--', 'pending'; ...
+                    'Handovers', sprintf('<= %d', params.policy.URLLC.handoverMax_URLLC), '--', 'pending'};
+            case "eMBB"
+                data = { ...
+                    'Rate', sprintf('%.6g bit/s', params.policy.eMBB.rateMin_eMBB_bps), '--', 'pending'; ...
+                    'Handovers', sprintf('<= %d', params.policy.eMBB.handoverMax_eMBB), '--', 'pending'};
+            otherwise
+                data = {'Policy', '--', '--', 'pending'};
+        end
+        return;
+    end
+
+    S = RESULTS.KPI_results;
+    flat = flattenStruct(S);
+
+    switch string(params.associationAlgorithm)
+        case "URLLC"
+            data = { ...
+                'Latency', sprintf('%.3g s', params.policy.URLLC.latency_max_URLLC), inferMetric(flat, ["latency","delay"], "not found"), inferStatus(flat, ["latency","delay"], params.policy.URLLC.latency_max_URLLC, "max"); ...
+                'SNR', sprintf('%.6g lin', params.policy.URLLC.SNRmin_URLLC_lin), inferMetric(flat, ["snr"], "not found"), inferStatus(flat, ["snr"], params.policy.URLLC.SNRmin_URLLC_lin, "min"); ...
+                'Handovers', sprintf('<= %d', params.policy.URLLC.handoverMax_URLLC), inferMetric(flat, ["handover","HO"], "not found"), inferStatus(flat, ["handover","HO"], params.policy.URLLC.handoverMax_URLLC, "max")};
+
+        case "eMBB"
+            data = { ...
+                'Rate', sprintf('%.6g bit/s', params.policy.eMBB.rateMin_eMBB_bps), inferMetric(flat, ["rate","throughput"], "not found"), inferStatus(flat, ["rate","throughput"], params.policy.eMBB.rateMin_eMBB_bps, "min"); ...
+                'Handovers', sprintf('<= %d', params.policy.eMBB.handoverMax_eMBB), inferMetric(flat, ["handover","HO"], "not found"), inferStatus(flat, ["handover","HO"], params.policy.eMBB.handoverMax_eMBB, "max")};
+
+        otherwise
+            data = {'Policy', '--', '--', 'unknown'};
+    end
+end
+
+function data = violationsPanelData(RESULTS, params)
+    if isempty(params)
+        data = {'No run', '-', 'waiting'};
+        return;
+    end
+
+    if isempty(RESULTS) || ~isfield(RESULTS, 'KPI_results')
+        data = {'No association run', '-', 'pending'};
+        return;
+    end
+
+    S = RESULTS.KPI_results;
+    flat = flattenStruct(S);
+
+    rows = {};
+
+    switch string(params.associationAlgorithm)
+        case "URLLC"
+            rows = [rows; violationRow(flat, ["latency","delay"], params.policy.URLLC.latency_max_URLLC, "max", "Latency target")]; %#ok<AGROW>
+            rows = [rows; violationRow(flat, ["snr"], params.policy.URLLC.SNRmin_URLLC_lin, "min", "SNR target")]; %#ok<AGROW>
+            rows = [rows; violationRow(flat, ["handover","HO"], params.policy.URLLC.handoverMax_URLLC, "max", "Handover limit")]; %#ok<AGROW>
+        case "eMBB"
+            rows = [rows; violationRow(flat, ["rate","throughput"], params.policy.eMBB.rateMin_eMBB_bps, "min", "Rate target")]; %#ok<AGROW>
+            rows = [rows; violationRow(flat, ["handover","HO"], params.policy.eMBB.handoverMax_eMBB, "max", "Handover limit")]; %#ok<AGROW>
+    end
+
+    if isempty(rows)
+        data = {'No checks available', '-', 'unknown'};
+    else
+        data = rows;
+    end
+end
+
+function row = violationRow(flat, keys, threshold, direction, label)
+    [value, found] = findNumericMetric(flat, keys);
+
+    if ~found
+        row = {char(string(label)), 'n/a', 'unknown'};
+        return;
+    end
+
+    if direction == "max"
+        violated = value > threshold;
+        margin = value - threshold;
+    else
+        violated = value < threshold;
+        margin = threshold - value;
+    end
+
+    if violated
+        severity = 'violation';
+        countTxt = sprintf('%.6g', margin);
+    else
+        severity = 'none';
+        countTxt = '0';
+    end
+
+    row = {char(string(label)), char(string(countTxt)), char(string(severity))};
+end
+
+function status = inferStatus(flat, keys, threshold, direction)
+    [value, found] = findNumericMetric(flat, keys);
+
+    if ~found
+        status = 'unknown';
+        return;
+    end
+
+    if direction == "max"
+        ok = value <= threshold;
+    else
+        ok = value >= threshold;
+    end
+
+    if ok
+        status = 'ok';
+    else
+        status = 'violated';
+    end
+end
+
+function txt = inferMetric(flat, keys, fallback)
+    [value, found] = findNumericMetric(flat, keys);
+    if found
+        txt = valueToText(value);
+    else
+        txt = char(string(fallback));
+    end
+end
+
+function [value, found] = findNumericMetric(flat, keys)
+    value = [];
+    found = false;
+
+    if isempty(flat)
+        return;
+    end
+
+    names = string(flat(:,1));
+    values = flat(:,2);
+
+    score = zeros(size(names));
+
+    for k = 1:numel(keys)
+        key = lower(string(keys(k)));
+        score = score + contains(lower(names), key);
+    end
+
+    idx = find(score > 0, 1, 'last');
+
+    if isempty(idx)
+        return;
+    end
+
+    candidate = values{idx};
+
+    if isnumeric(candidate)
+        if isscalar(candidate)
+            value = candidate;
+        else
+            value = mean(candidate(:), 'omitnan');
+        end
+        found = true;
+    elseif islogical(candidate)
+        value = double(candidate);
+        found = true;
+    end
+end
+
+function flat = flattenStruct(S)
+    flat = {};
+    recurse("", S);
+
+    function recurse(prefix, value)
+        if isstruct(value)
+            names = fieldnames(value);
+            for i = 1:numel(names)
+                if prefix == ""
+                    nextName = string(names{i});
+                else
+                    nextName = prefix + "." + string(names{i});
+                end
+                recurse(nextName, value.(names{i}));
+            end
+        else
+            flat(end+1, :) = {char(prefix), value}; %#ok<AGROW>
+        end
+    end
+end
+
+
+function txt = valueToText(value)
+    if isnumeric(value)
+        if isscalar(value)
+            txt = sprintf('%.6g', value);
+        else
+            sz = size(value);
+            txt = sprintf('[%s] numeric', char(strjoin(string(sz), ' x ')));
+        end
+    elseif isstring(value) || ischar(value)
+        txt = char(string(value));
+    elseif islogical(value)
+        txt = char(string(value));
+    elseif istable(value)
+        txt = sprintf('table %d x %d', height(value), width(value));
+    elseif isstruct(value)
+        txt = sprintf('struct with %d fields', numel(fieldnames(value)));
+    else
+        txt = class(value);
+    end
+end
+
+function lines = structToLines(S)
+    try
+        txt = evalc('disp(S)');
+        lines = splitlines(string(txt));
+        lines = cellstr(lines);
+        lines = lines(~cellfun(@isempty, lines));
+
+        if isempty(lines)
+            lines = {'KPI object empty'};
+        end
+    catch
+        lines = {'Cannot display KPI object'};
+    end
+end
+
+function d = modalWindow(name, C, position)
+    d = uifigure( ...
+        'Name', name, ...
+        'Position', position, ...
+        'Color', C.bg, ...
+        'WindowStyle', 'modal');
+end
+
+function modalHeader(parent, titleText, subText, C, fontName)
+    g = uigridlayout(parent, [2 1]);
+    g.Layout.Row = 1;
+    g.Layout.Column = [1 2];
+    g.RowHeight = {22, 18};
+    g.Padding = [0 0 0 0];
+    g.RowSpacing = 0;
+    g.BackgroundColor = C.bg;
+
+    uilabel(g, ...
+        'Text', titleText, ...
+        'FontName', fontName, ...
+        'FontSize', 16, ...
+        'FontWeight', 'bold', ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.bg);
+
+    uilabel(g, ...
+        'Text', subText, ...
+        'FontName', fontName, ...
+        'FontSize', 10, ...
+        'FontColor', C.muted, ...
+        'BackgroundColor', C.bg);
+end
+
+function field = modalNumeric(parent, label, value, C, fontName)
+    uilabel(parent, ...
+        'Text', label, ...
+        'FontName', fontName, ...
+        'FontSize', 11, ...
+        'FontColor', C.text, ...
+        'BackgroundColor', C.bg);
+
+    field = uieditfield(parent, 'numeric', ...
+        'Value', value, ...
+        'BackgroundColor', C.card, ...
+        'FontColor', C.text, ...
+        'FontName', fontName, ...
+        'FontSize', 11);
+end
+
+function spacer(parent, color, fontName)
+    uilabel(parent, 'Text', '', 'BackgroundColor', color, 'FontName', fontName);
+end
+
+function tryStyleTable(tbl, C)
+    try
+        s1 = uistyle('BackgroundColor', C.table1, 'FontColor', C.text);
+        s2 = uistyle('BackgroundColor', C.table2, 'FontColor', C.text);
+        addStyle(tbl, s1, 'row', 1:2:200);
+        addStyle(tbl, s2, 'row', 2:2:200);
+    catch
+        % Table styling differs across MATLAB releases; the GUI remains functional.
+    end
+end
+
+function out = ternary(condition, a, b)
+    if condition
+        out = a;
+    else
+        out = b;
+    end
+end
