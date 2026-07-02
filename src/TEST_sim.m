@@ -13,7 +13,7 @@ clear;
 params = default_NAPOLEON_params();
 
 %% Optional quick testing modifications
-params.numUsers = 100;
+params.numUsers = 200;
 params.CSImode = "forecast";
 params.associationAlgorithm = "eMBB";
 

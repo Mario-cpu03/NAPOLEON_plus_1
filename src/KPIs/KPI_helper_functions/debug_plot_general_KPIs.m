@@ -228,9 +228,9 @@ function debug_plot_general_KPIs(generalKPIs, specificKPIs, USER_SAT_association
 
     handoverIdx = find(HO_u);
 
-    figure('Name', sprintf('DEBUG - General KPIs - Representative User %d QoS Evolution', userIdx));
+    figure('Name', sprintf('DEBUG - General KPIs - Representative User %d QoS Evolution', userIdx), Color='white');
 
-    subplot(5,1,1);
+    subplot(2,1,1);
     stairs(timeAxis, rate_u_Mbps, 'LineWidth', 1.5);
     grid on;
     ylabel('Rate [Mbit/s]');
@@ -239,9 +239,10 @@ function debug_plot_general_KPIs(generalKPIs, specificKPIs, USER_SAT_association
     for k = 1:numel(handoverIdx)
         xline(timeAxis(handoverIdx(k)), '--');
     end
+    xlim([timeAxis(1), timeAxis(length(timeAxis))]);
     hold off;
 
-    subplot(5,1,2);
+    subplot(2,1,2);
     stairs(timeAxis, SNR_u_dB, 'LineWidth', 1.5);
     grid on;
     ylabel('SNR [dB]');
@@ -250,32 +251,38 @@ function debug_plot_general_KPIs(generalKPIs, specificKPIs, USER_SAT_association
     for k = 1:numel(handoverIdx)
         xline(timeAxis(handoverIdx(k)), '--');
     end
+    xlim([timeAxis(1), timeAxis(length(timeAxis))]);
     hold off;
 
-    subplot(5,1,3);
+    subplot(3,1,1);
     stairs(timeAxis, double(served_u), 'LineWidth', 1.5);
     grid on;
     ylim([-0.1, 1.1]);
+    xlim([timeAxis(1), timeAxis(length(timeAxis))]);
     yticks([0 1]);
     yticklabels({'Not served', 'Served'});
     ylabel('Service');
     title('Representative-user service state');
 
-    subplot(5,1,4);
+    subplot(3,1,2);
     stairs(timeAxis, double(HO_u), 'LineWidth', 1.5);
     grid on;
     ylim([-0.1, 1.1]);
+    xlim([timeAxis(1), timeAxis(length(timeAxis))]);
     yticks([0 1]);
     yticklabels({'No HO', 'HO'});
     ylabel('HO');
     title('Representative-user handover events');
 
-    subplot(5,1,5);
+    subplot(3,1,3);
     stairs(timeAxis, sat_u, 'LineWidth', 1.2);
+    xlim([timeAxis(1), timeAxis(length(timeAxis))]);
     grid on;
     xlabel(xLabelTime);
     ylabel('Satellite index');
     title('Representative-user assigned satellite evolution');
+
+
 
 
     %% FIGURE 6: ALGORITHM-SPECIFIC KPI DEBUG PLOTS
