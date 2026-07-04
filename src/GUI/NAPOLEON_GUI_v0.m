@@ -209,7 +209,7 @@ function NAPOLEON_GUI_v0()
     %     'FontColor', C.muted, ...
     %     'BackgroundColor', C.card);
 
-    scenarioBadge = ribbonBadge(ribGrid, 'Scenario', 'SETUP', C.neutralSoft, C.muted, C, fontName)
+    scenarioBadge = ribbonBadge(ribGrid, 'Scenario', 'SETUP', C.neutralSoft, C.muted, C, fontName);
     assocBadge    = ribbonBadge(ribGrid, 'Association', 'LOCKED', C.neutralSoft, C.disabled, C, fontName);
     exportBadge   = ribbonBadge(ribGrid, 'Export Datas', 'LOCKED', C.neutralSoft, C.disabled, C, fontName);
     runMeter      = runtimeBar(ribGrid, C, fontName);
@@ -746,7 +746,7 @@ end
         setInputFieldsFromParams(params);
         State.params = params;
         clearSimulationWorkspace(false);
-        kpiTable.Data = kpiTableData([], []);
+        kpiTable.Data = kpiTableData([], params);
         complianceTable.Data = serviceComplianceData([], params);
         violationsTable.Data = violationsPanelData([], params);
         appendLog('DEFAULT PARAMETERS LOADED');
@@ -1178,7 +1178,7 @@ end
 
             complianceTable.Data = serviceComplianceData([], State.params);
             violationsTable.Data = violationsPanelData([], State.params);
-            kpiTable.Data = kpiTableData([], []);
+            kpiTable.Data = kpiTableData([], currentParams);
             
             policy = string(currentParams.associationAlgorithm);
             updateDynamicKPIButtons("scenario", policy);
@@ -1228,7 +1228,7 @@ end
             defaultBtn.Enable = 'on';
             resetWorkspaceBtn.Enable = 'on';
 
-            kpiTable.Data = kpiTableData([], []);
+            kpiTable.Data = kpiTableData([], currentParams);
             
             policy = string(currentParams.associationAlgorithm);
             updateDynamicKPIButtons("off", policy);
@@ -2656,7 +2656,19 @@ function data = kpiTableData(RESULTS, params)
     rows = {'Metric', 'Value', 'Unit'}; 
 
     if isempty(RESULTS) || ~isfield(RESULTS, 'KPI_results')
-        rows(end+1,:) = {'No KPI data', '-', '-'};
+        rows(end+1,:) = {'Avg User SNR', '-', 'dB'};
+        rows(end+1,:) = {'Avg User Rate', '-', 'Mbps'};
+        rows(end+1,:) = {'Avg User Spectral Efficiency', '-', 'b/s/Hz'};
+        rows(end+1,:) = {'Mean Total Handovers', '-', 'HO/step'};
+        
+        if ~isempty(params) && isfield(params, 'associationAlgorithm')
+            if strcmpi(string(params.associationAlgorithm), 'eMBB')
+                rows(end+1,:) = {'Mean eMBB TCR', '-', '%'};
+            elseif strcmpi(string(params.associationAlgorithm), 'URLLC')
+                rows(end+1,:) = {'URLLC 90th Percentile', '-', 'ms'};
+                rows(end+1,:) = {'Mean URLLC TCR', '-', '%'};
+            end
+        end
     else
         K = RESULTS.KPI_results;
         if ~isfield(K, 'generalKPIs')
@@ -2684,7 +2696,7 @@ function data = kpiTableData(RESULTS, params)
             if isfield(G, 'throughput') && isfield(G.throughput, 'globalAvgUserRate_bpsHz')
                 v = G.throughput.globalAvgUserRate_bpsHz;
                 if isnumeric(v) && isscalar(v)
-                    rows(end+1,:) = {' Avg User Spectral Efficiency', sprintf('%.4f', v), 'b/s/Hz'};
+                    rows(end+1,:) = {'Avg User Spectral Efficiency', sprintf('%.4f', v), 'b/s/Hz'};
                     has_data = true;
                 end
             end
